@@ -1,0 +1,26 @@
+{
+  "name": "hotel-reservation-system",
+  "version": "1.0.0",
+  "description": "Hotel Room Reservation System — IM1 Part 2",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "server:dev": "node server/index.js",
+    "client:dev": "cd client && npm start",
+    "install-all": "npm install && cd client && npm install",
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "seed": "node server/seed.js",
+    "build": "cd client && npm run build",
+    "postinstall": "cd client && npm install && npm run build"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
