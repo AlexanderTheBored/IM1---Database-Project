@@ -14,19 +14,18 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
-const ROOM_FEATURES = {
-  "Single": ["Single Bed", "Free WiFi", "Air Conditioning", "Private Bathroom"],
-  "Double": ["Double Bed", "Free WiFi", "City View", "Mini Fridge", "Private Bathroom"],
-  "Deluxe": ["King Bed", "Free WiFi", "Panoramic View", "Mini Bar", "Smart TV", "Room Service"],
-  "Executive Suite": ["King Bed + Sofa", "Living Area", "Private Balcony", "Mini Bar", "Smart TV", "24/7 Concierge", "Complimentary Breakfast"],
-};
-
-const ROOM_IMAGES = {
-  "Single": "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",
-  "Double": "https://images.unsplash.com/photo-1590490360182-c33d955f4e24?w=600&h=400&fit=crop",
-  "Deluxe": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",
-  "Executive Suite": "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=600&h=400&fit=crop",
-};
+// Images by index — each room type gets a unique photo regardless of name
+const ROOM_IMAGE_POOL = [
+  "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",   // compact single
+  "https://images.unsplash.com/photo-1590490360182-c33d955f4e24?w=600&h=400&fit=crop",   // warm double
+  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",   // bright deluxe
+  "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=600&h=400&fit=crop",   // spacious suite
+  "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600&h=400&fit=crop",   // luxury bed
+  "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=600&h=400&fit=crop",   // elegant suite
+  "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&h=400&fit=crop",   // modern room
+  "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=600&h=400&fit=crop",   // classic hotel
+];
+const getRoomImage = (index) => ROOM_IMAGE_POOL[index % ROOM_IMAGE_POOL.length];
 
 /* ─── Styles ─── */
 const S = {
@@ -41,8 +40,8 @@ const S = {
   h2: { fontSize: 36, fontWeight: 400, textAlign: "center", marginBottom: 8, color: "#2c2820" },
   subtitle: { fontSize: 16, fontFamily: "'DM Sans', sans-serif", fontWeight: 400, opacity: 0.75, letterSpacing: 1 },
   sectionSub: { fontSize: 15, fontFamily: "'DM Sans', sans-serif", textAlign: "center", color: "#8a7e6e", marginBottom: 48 },
-  roomGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 },
-  roomCard: { background: "#fff", borderRadius: 12, overflow: "hidden", border: "1px solid #e8e2d8", transition: "all .3s", cursor: "pointer" },
+  roomGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, alignItems: "stretch" },
+  roomCard: { background: "#fff", borderRadius: 12, overflow: "hidden", border: "1px solid #e8e2d8", transition: "all .3s", cursor: "pointer", display: "flex", flexDirection: "column" },
   roomImg: { width: "100%", height: 180, objectFit: "cover" },
   roomBody: { padding: "20px 22px" },
   roomName: { fontSize: 22, fontWeight: 600, color: "#2c2820", marginBottom: 4 },
@@ -88,35 +87,33 @@ function SearchBar({ checkIn, checkOut, onCheckIn, onCheckOut, onSearch }) {
   );
 }
 
-function RoomCard({ type, available, onBook }) {
-  const features = ROOM_FEATURES[type.type_name] || [];
-  const img = ROOM_IMAGES[type.type_name] || ROOM_IMAGES["Single"];
+function RoomCard({ type, available, onBook, index }) {
+  const img = getRoomImage(index);
   return (
-    <div style={{ ...S.roomCard, opacity: available === 0 ? 0.5 : 1, transform: "translateY(0)", }} 
+    <div style={{ ...S.roomCard, opacity: available === 0 ? 0.5 : 1, display: "flex", flexDirection: "column" }}
       onMouseEnter={(e) => { if (available > 0) e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,.1)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}>
       <img src={img} alt={type.type_name} style={S.roomImg} />
-      <div style={S.roomBody}>
+      <div style={{ ...S.roomBody, display: "flex", flexDirection: "column", flex: 1 }}>
         <div style={S.roomName}>{type.type_name}</div>
-        <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#8a7e6e", marginBottom: 12 }}>{type.description}</div>
-        <ul style={S.featureList}>
-          {features.map((f) => <li key={f} style={S.featureTag}>{f}</li>)}
-        </ul>
+        <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#8a7e6e", marginBottom: 12, minHeight: 40 }}>{type.description}</div>
         <hr style={S.divider} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <span style={S.roomRate}>{fmt(type.nightly_rate)}</span>
-            <span style={S.roomRateSuffix}> /night</span>
+        <div style={{ marginTop: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={S.roomRate}>{fmt(type.nightly_rate)}</span>
+              <span style={S.roomRateSuffix}> /night</span>
+            </div>
+            <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif", color: available > 0 ? "#4a8c5c" : "#c44" }}>
+              {available > 0 ? `${available} available` : "Fully booked"}
+            </div>
           </div>
-          <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif", color: available > 0 ? "#4a8c5c" : "#c44" }}>
-            {available > 0 ? `${available} available` : "Fully booked"}
-          </div>
+          {available > 0 ? (
+            <button onClick={() => onBook(type)} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull }}>Book Now</button>
+          ) : (
+            <button disabled style={{ ...S.btn, ...S.btnFull, background: "#ddd", color: "#999", cursor: "not-allowed" }}>Unavailable</button>
+          )}
         </div>
-        {available > 0 ? (
-          <button onClick={() => onBook(type)} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull }}>Book Now</button>
-        ) : (
-          <button disabled style={{ ...S.btn, ...S.btnFull, background: "#ddd", color: "#999", cursor: "not-allowed" }}>Unavailable</button>
-        )}
       </div>
     </div>
   );
@@ -333,8 +330,8 @@ export default function BookingPage({ onSwitchToAdmin }) {
             : "Select your dates above to check availability, or browse our room types below"}
         </p>
         <div style={S.roomGrid}>
-          {roomTypes.map((type) => (
-            <RoomCard key={type.type_id} type={type} available={availableRooms(type.type_id).length} onBook={handleBook} />
+          {roomTypes.map((type, i) => (
+            <RoomCard key={type.type_id} type={type} index={i} available={availableRooms(type.type_id).length} onBook={handleBook} />
           ))}
         </div>
       </section>
