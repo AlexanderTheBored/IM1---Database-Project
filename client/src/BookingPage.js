@@ -17,7 +17,7 @@ async function api(path, opts = {}) {
 // Images by index — each room type gets a unique photo regardless of name
 const ROOM_IMAGE_POOL = [
   "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&h=400&fit=crop",   // compact single
-  "https://images.unsplash.com/photo-1590490360182-c33d955f4e24?w=600&h=400&fit=crop",   // warm double
+  "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=600&h=400&fit=crop",   // warm double
   "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&h=400&fit=crop",   // bright deluxe
   "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=600&h=400&fit=crop",   // spacious suite
   "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600&h=400&fit=crop",   // luxury bed
@@ -87,10 +87,10 @@ function SearchBar({ checkIn, checkOut, onCheckIn, onCheckOut, onSearch }) {
   );
 }
 
-function RoomCard({ type, available, onBook, index }) {
+function RoomCard({ type, available, onSelect, index }) {
   const img = getRoomImage(index);
   return (
-    <div style={{ ...S.roomCard, opacity: available === 0 ? 0.5 : 1, display: "flex", flexDirection: "column" }}
+    <div onClick={() => onSelect(type, index)} style={{ ...S.roomCard, opacity: available === 0 ? 0.5 : 1, display: "flex", flexDirection: "column" }}
       onMouseEnter={(e) => { if (available > 0) e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,.1)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}>
       <img src={img} alt={type.type_name} style={S.roomImg} />
@@ -108,11 +108,64 @@ function RoomCard({ type, available, onBook, index }) {
               {available > 0 ? `${available} available` : "Fully booked"}
             </div>
           </div>
-          {available > 0 ? (
-            <button onClick={() => onBook(type)} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull }}>Book Now</button>
-          ) : (
-            <button disabled style={{ ...S.btn, ...S.btnFull, background: "#ddd", color: "#999", cursor: "not-allowed" }}>Unavailable</button>
-          )}
+          <button style={{ ...S.btn, ...S.btnOutline, ...S.btnFull, fontSize: 13 }}>View Details</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoomDetailModal({ type, index, available, availableRooms, checkIn, checkOut, onBook, onClose }) {
+  const img = getRoomImage(index);
+  const nights = checkIn && checkOut ? diffDays(checkIn, checkOut) : 1;
+
+  const highlights = [
+    { icon: "👥", label: "Max Occupancy", value: `${type.max_occupancy || 2} guest${(type.max_occupancy || 2) > 1 ? "s" : ""}` },
+    { icon: "📐", label: "Available Rooms", value: `${available} of ${available + availableRooms.length - available}` },
+    { icon: "💰", label: `${nights} Night${nights > 1 ? "s" : ""} Total`, value: fmt(type.nightly_rate * nights) },
+  ];
+
+  return (
+    <div style={S.modal} onClick={onClose}>
+      <div style={{ ...S.modalContent, maxWidth: 620, padding: 0, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+        {/* Hero image */}
+        <div style={{ position: "relative" }}>
+          <img src={img} alt={type.type_name} style={{ width: "100%", height: 260, objectFit: "cover", display: "block" }} />
+          <button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,.5)", border: "none", color: "#fff", width: 36, height: 36, borderRadius: "50%", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,.6))", padding: "40px 28px 20px" }}>
+            <div style={{ color: "#fff", fontSize: 28, fontWeight: 600 }}>{type.type_name}</div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: "24px 28px 28px" }}>
+          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#6b5b45", lineHeight: 1.7, marginBottom: 20 }}>
+            {type.description}
+          </p>
+
+          {/* Highlights */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+            {highlights.map((h) => (
+              <div key={h.label} style={{ background: "#f5f1eb", borderRadius: 10, padding: "14px 16px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, marginBottom: 4 }}>{h.icon}</div>
+                <div style={{ fontSize: 11, fontFamily: "'DM Sans', sans-serif", color: "#8a7e6e", fontWeight: 500, marginBottom: 2 }}>{h.label}</div>
+                <div style={{ fontSize: 15, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, color: "#2c2820" }}>{h.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Rate & Book */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "#f0ece4", borderRadius: 10 }}>
+            <div>
+              <span style={{ fontSize: 26, fontWeight: 700, color: "#8b7355" }}>{fmt(type.nightly_rate)}</span>
+              <span style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#a09882" }}> /night</span>
+            </div>
+            {available > 0 ? (
+              <button onClick={() => onBook(type)} style={{ ...S.btn, ...S.btnPrimary, padding: "14px 36px", fontSize: 15 }}>Book Now</button>
+            ) : (
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#c44", fontWeight: 600 }}>Fully Booked</span>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -264,6 +317,7 @@ export default function BookingPage({ onSwitchToAdmin }) {
   const [checkOut, setCheckOut] = useState(tomorrow());
   const [searched, setSearched] = useState(false);
   const [booking, setBooking] = useState(null);
+  const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
@@ -280,9 +334,14 @@ export default function BookingPage({ onSwitchToAdmin }) {
 
   const handleSearch = () => setSearched(true);
 
+  const handleSelect = (type, index) => {
+    setDetail({ type, index });
+  };
+
   const handleBook = (type) => {
     const avail = availableRooms(type.type_id);
     if (avail.length === 0) return;
+    setDetail(null);
     setBooking({ type, rooms: avail });
   };
 
@@ -331,7 +390,7 @@ export default function BookingPage({ onSwitchToAdmin }) {
         </p>
         <div style={S.roomGrid}>
           {roomTypes.map((type, i) => (
-            <RoomCard key={type.type_id} type={type} index={i} available={availableRooms(type.type_id).length} onBook={handleBook} />
+            <RoomCard key={type.type_id} type={type} index={i} available={availableRooms(type.type_id).length} onSelect={handleSelect} />
           ))}
         </div>
       </section>
@@ -363,6 +422,20 @@ export default function BookingPage({ onSwitchToAdmin }) {
         <p>IM1 Part 2 — Database Project</p>
         <p style={{ marginTop: 4, color: "#6b5b45" }}>© 2026 Hotel Reservation System. All rights reserved.</p>
       </footer>
+
+      {/* Room Detail Modal */}
+      {detail && (
+        <RoomDetailModal
+          type={detail.type}
+          index={detail.index}
+          available={availableRooms(detail.type.type_id).length}
+          availableRooms={availableRooms(detail.type.type_id)}
+          checkIn={checkIn}
+          checkOut={checkOut}
+          onBook={handleBook}
+          onClose={() => setDetail(null)}
+        />
+      )}
 
       {/* Booking Modal */}
       {booking && (
