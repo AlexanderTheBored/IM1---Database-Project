@@ -173,11 +173,11 @@ function RoomDetailModal({ type, index, available, availableRooms, checkIn, chec
 
 function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
-  const [selectedRoom, setSelectedRoom] = useState(rooms[0]?.room_id || "");
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "" });
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
 
+  const assignedRoom = rooms[0];
   const nights = diffDays(checkIn, checkOut);
   const total = type.nightly_rate * nights;
   const set = (k, v) => setForm({ ...form, [k]: v });
@@ -187,9 +187,9 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
     setSubmitting(true);
     try {
       const guest = await api("/guests", { method: "POST", body: { first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone || null, address: form.address || null } });
-      const reservation = await api("/reservations", { method: "POST", body: { guest_id: guest.guest_id, room_id: Number(selectedRoom), check_in_date: checkIn, check_out_date: checkOut, total_amount: total } });
+      const reservation = await api("/reservations", { method: "POST", body: { guest_id: guest.guest_id, room_id: assignedRoom.room_id, check_in_date: checkIn, check_out_date: checkOut, total_amount: total } });
       setConfirmation({ ...reservation, guest });
-      setStep(3);
+      setStep(2);
       if (onSuccess) onSuccess();
     } catch (e) {
       alert("Booking failed. Please try again.");
@@ -205,10 +205,10 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#8b7355", fontWeight: 600, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>
-              {step === 3 ? "Confirmed" : `Step ${step} of 2`}
+              {step === 2 ? "Confirmed" : "Reserve"}
             </div>
             <div style={{ fontSize: 26, fontWeight: 600, color: "#2c2820" }}>
-              {step === 1 ? "Select Your Room" : step === 2 ? "Guest Details" : "Booking Confirmed!"}
+              {step === 1 ? "Your Details" : "Booking Confirmed"}
             </div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 24, color: "#8a7e6e", cursor: "pointer" }}>✕</button>
@@ -225,32 +225,8 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
           <div style={{ fontSize: 12, color: "#8a7e6e" }}>{checkIn} → {checkOut} · {nights} night{nights > 1 ? "s" : ""} · {fmt(type.nightly_rate)}/night</div>
         </div>
 
-        {/* Step 1: Room selection */}
+        {/* Step 1: Guest form (room is auto-assigned) */}
         {step === 1 && (
-          <>
-            <div style={S.label}>Choose a Room</div>
-            <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
-              {rooms.map((r) => (
-                <label key={r.room_id} style={{
-                  display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 10, cursor: "pointer",
-                  border: selectedRoom === r.room_id ? "2px solid #8b7355" : "1px solid #e8e2d8",
-                  background: selectedRoom === r.room_id ? "#f5f1eb" : "#fff",
-                }}>
-                  <input type="radio" name="room" value={r.room_id} checked={selectedRoom === r.room_id}
-                    onChange={() => setSelectedRoom(r.room_id)} style={{ accentColor: "#8b7355" }} />
-                  <div>
-                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 600, color: "#2c2820" }}>Room {r.room_number}</div>
-                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#8a7e6e" }}>Floor {r.floor}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <button onClick={() => setStep(2)} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull }}>Continue</button>
-          </>
-        )}
-
-        {/* Step 2: Guest info */}
-        {step === 2 && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={S.formGroup}>
@@ -266,25 +242,27 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
               <label style={S.label}>Email *</label>
               <input style={S.input} type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="maria@email.com" />
             </div>
-            <div style={S.formGroup}>
-              <label style={S.label}>Phone</label>
-              <input style={S.input} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0917-123-4567" />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={S.formGroup}>
+                <label style={S.label}>Phone</label>
+                <input style={S.input} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0917-123-4567" />
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Address</label>
+                <input style={S.input} value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cebu City" />
+              </div>
             </div>
-            <div style={S.formGroup}>
-              <label style={S.label}>Address</label>
-              <input style={S.input} value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cebu City" />
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStep(1)} style={{ ...S.btn, ...S.btnOutline, flex: 1 }}>Back</button>
-              <button onClick={handleSubmit} disabled={submitting} style={{ ...S.btn, ...S.btnPrimary, flex: 2, opacity: submitting ? 0.6 : 1 }}>
-                {submitting ? "Booking..." : "Confirm Booking"}
-              </button>
-            </div>
+            <button onClick={handleSubmit} disabled={submitting} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull, opacity: submitting ? 0.6 : 1 }}>
+              {submitting ? "Confirming…" : "Confirm Booking"}
+            </button>
+            <p style={{ fontSize: 11, fontFamily: "'DM Sans', sans-serif", color: "#a09882", textAlign: "center", marginTop: 12 }}>
+              Your room will be assigned automatically. Special requests can be made at check-in.
+            </p>
           </>
         )}
 
-        {/* Step 3: Confirmation */}
-        {step === 3 && confirmation && (
+        {/* Step 2: Confirmation */}
+        {step === 2 && confirmation && (
           <div style={{ textAlign: "center" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#e6f5eb", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>Thank you, {form.firstName}!</div>
@@ -292,7 +270,7 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
               Your reservation <strong>#{confirmation.reservation_id}</strong> has been confirmed.
             </div>
             <div style={{ background: "#f0ece4", borderRadius: 10, padding: 20, textAlign: "left", fontFamily: "'DM Sans', sans-serif", fontSize: 13, lineHeight: 2 }}>
-              <div><strong>Room:</strong> {type.type_name}</div>
+              <div><strong>Room:</strong> {type.type_name} · Room {assignedRoom.room_number}</div>
               <div><strong>Check-in:</strong> {checkIn}</div>
               <div><strong>Check-out:</strong> {checkOut}</div>
               <div><strong>Total:</strong> {fmt(total)}</div>
