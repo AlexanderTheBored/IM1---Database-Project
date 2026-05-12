@@ -1,4 +1,4 @@
-# 🏨 AIKE — A Web-Based Automated Integrated Key Experience for Hotel Reservations and Guest Management
+# AIKE — A Web-Based Automated Integrated Key Experience for Hotel Reservations and Guest Management
 
 A full-stack hotel reservation and guest management system built with **Node.js**, **Express**, **PostgreSQL**, and **React**.
 
@@ -10,7 +10,7 @@ A full-stack hotel reservation and guest management system built with **Node.js*
 
 ---
 
-## 📦 Tech Stack
+## Tech Stack
 
 | Layer    | Technology              |
 |----------|-------------------------|
@@ -20,7 +20,7 @@ A full-stack hotel reservation and guest management system built with **Node.js*
 | Hosting  | Railway                 |
 | API      | REST                    |
 
-## 🗄️ Database Schema (5 Core Tables)
+## Database Schema (5 Core Tables)
 
 ```
 room_types ──┐
@@ -42,7 +42,7 @@ payments
 
 ---
 
-## 🚀 Deploy to Railway (Live on the Internet)
+## Deploy to Railway (Live on the Internet)
 
 ### Step 1: Push to GitHub
 ```bash
@@ -82,7 +82,7 @@ Share this URL with your group and instructor!
 
 ---
 
-## 💻 Run Locally (for development)
+## Run Locally (for development)
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) v18+
@@ -114,7 +114,7 @@ Opens at `http://localhost:3000` (frontend) + `http://localhost:5000` (API)
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 | Method | Endpoint                           | Description              |
 |--------|-------------------------------------|--------------------------|
@@ -133,7 +133,7 @@ Opens at `http://localhost:3000` (frontend) + `http://localhost:5000` (API)
 
 ---
 
-## 👥 Group Members
+## Group Members
 
 | Name | Task |
 |------|------|
@@ -143,7 +143,7 @@ Opens at `http://localhost:3000` (frontend) + `http://localhost:5000` (API)
 
 ---
 
-## 📎 Related Systems
+## Related Systems
 
 1. **QloApps** — https://qloapps.com
 2. **HotelDruid** — https://www.hoteldruid.com
