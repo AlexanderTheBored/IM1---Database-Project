@@ -171,14 +171,17 @@ function RoomDetailModal({ type, index, available, availableRooms, checkIn, chec
   );
 }
 
-function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
+function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialCheckOut, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
+  const [checkIn, setCheckIn] = useState(initialCheckIn || today());
+  const [checkOut, setCheckOut] = useState(initialCheckOut || tomorrow());
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "" });
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
 
   const assignedRoom = rooms[0];
-  const nights = diffDays(checkIn, checkOut);
+  const validDates = checkIn && checkOut && new Date(checkOut) > new Date(checkIn);
+  const nights = validDates ? diffDays(checkIn, checkOut) : 0;
   const total = type.nightly_rate * nights;
   const set = (k, v) => setForm({ ...form, [k]: v });
 
@@ -189,13 +192,16 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
       const guest = await api("/guests", { method: "POST", body: { first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone || null, address: form.address || null } });
       const reservation = await api("/reservations", { method: "POST", body: { guest_id: guest.guest_id, room_id: assignedRoom.room_id, check_in_date: checkIn, check_out_date: checkOut, total_amount: total } });
       setConfirmation({ ...reservation, guest });
-      setStep(2);
+      setStep(3);
       if (onSuccess) onSuccess();
     } catch (e) {
       alert("Booking failed. Please try again.");
     }
     setSubmitting(false);
   };
+
+  const headerEyebrow = step === 3 ? "Confirmed" : `Step ${step} of 2`;
+  const headerTitle = step === 1 ? "Choose Your Dates" : step === 2 ? "Your Details" : "Booking Confirmed";
 
   return (
     <div style={S.modal} onClick={onClose}>
@@ -205,10 +211,10 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#8b7355", fontWeight: 600, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>
-              {step === 2 ? "Confirmed" : "Reserve"}
+              {headerEyebrow}
             </div>
             <div style={{ fontSize: 26, fontWeight: 600, color: "#2c2820" }}>
-              {step === 1 ? "Your Details" : "Booking Confirmed"}
+              {headerTitle}
             </div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 24, color: "#8a7e6e", cursor: "pointer" }}>✕</button>
@@ -220,13 +226,50 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
         <div style={{ background: "#f0ece4", borderRadius: 10, padding: 16, marginBottom: 20, fontFamily: "'DM Sans', sans-serif" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 6 }}>
             <span style={{ color: "#6b5b45", fontWeight: 600 }}>{type.type_name}</span>
-            <span style={{ color: "#8b7355", fontWeight: 700 }}>{fmt(total)}</span>
+            <span style={{ color: "#8b7355", fontWeight: 700 }}>{validDates ? fmt(total) : `${fmt(type.nightly_rate)}/night`}</span>
           </div>
-          <div style={{ fontSize: 12, color: "#8a7e6e" }}>{checkIn} → {checkOut} · {nights} night{nights > 1 ? "s" : ""} · {fmt(type.nightly_rate)}/night</div>
+          <div style={{ fontSize: 12, color: "#8a7e6e" }}>
+            {validDates ? `${checkIn} → ${checkOut} · ${nights} night${nights > 1 ? "s" : ""} · ${fmt(type.nightly_rate)}/night` : "Select your check-in and check-out dates below"}
+          </div>
         </div>
 
-        {/* Step 1: Guest form (room is auto-assigned) */}
+        {/* Step 1: Dates */}
         {step === 1 && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={S.formGroup}>
+                <label style={S.label}>Check In *</label>
+                <input style={S.input} type="date" value={checkIn} min={today()}
+                  onChange={(e) => { setCheckIn(e.target.value); if (checkOut && new Date(e.target.value) >= new Date(checkOut)) setCheckOut(""); }} />
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Check Out *</label>
+                <input style={S.input} type="date" value={checkOut} min={checkIn || today()}
+                  onChange={(e) => setCheckOut(e.target.value)} />
+              </div>
+            </div>
+            <div style={{ background: "#faf6ee", border: "1px dashed #d8cdb8", borderRadius: 10, padding: "18px 20px", textAlign: "center", marginTop: 8, marginBottom: 18 }}>
+              {validDates ? (
+                <>
+                  <div style={{ fontSize: 11, fontFamily: "'DM Sans', sans-serif", color: "#8a7e6e", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>
+                    {nights} night{nights > 1 ? "s" : ""} · {fmt(type.nightly_rate)}/night
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "#8b7355", fontFamily: "'Cormorant Garamond', serif" }}>{fmt(total)}</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#a09882" }}>
+                  Pick dates above to see your total
+                </div>
+              )}
+            </div>
+            <button onClick={() => setStep(2)} disabled={!validDates} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull, opacity: validDates ? 1 : 0.4, cursor: validDates ? "pointer" : "not-allowed" }}>
+              Continue
+            </button>
+          </>
+        )}
+
+        {/* Step 2: Guest form (room is auto-assigned) */}
+        {step === 2 && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={S.formGroup}>
@@ -252,17 +295,20 @@ function BookingModal({ type, rooms, checkIn, checkOut, onClose, onSuccess }) {
                 <input style={S.input} value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cebu City" />
               </div>
             </div>
-            <button onClick={handleSubmit} disabled={submitting} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull, opacity: submitting ? 0.6 : 1 }}>
-              {submitting ? "Confirming…" : "Confirm Booking"}
-            </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setStep(1)} style={{ ...S.btn, ...S.btnOutline, flex: 1 }}>Back</button>
+              <button onClick={handleSubmit} disabled={submitting} style={{ ...S.btn, ...S.btnPrimary, flex: 2, opacity: submitting ? 0.6 : 1 }}>
+                {submitting ? "Confirming…" : "Confirm Booking"}
+              </button>
+            </div>
             <p style={{ fontSize: 11, fontFamily: "'DM Sans', sans-serif", color: "#a09882", textAlign: "center", marginTop: 12 }}>
               Your room will be assigned automatically. Special requests can be made at check-in.
             </p>
           </>
         )}
 
-        {/* Step 2: Confirmation */}
-        {step === 2 && confirmation && (
+        {/* Step 3: Confirmation */}
+        {step === 3 && confirmation && (
           <div style={{ textAlign: "center" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#e6f5eb", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>Thank you, {form.firstName}!</div>
