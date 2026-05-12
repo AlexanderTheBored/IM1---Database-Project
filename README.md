@@ -1,6 +1,8 @@
-# 🏨 Hotel Room Reservation System
+# 🏨 AIKE — A Web-Based Automated Integrated Key Experience for Hotel Reservations and Guest Management
 
-A full-stack hotel reservation management system built with **Node.js**, **Express**, **PostgreSQL**, and **React**.
+A full-stack hotel reservation and guest management system built with **Node.js**, **Express**, **PostgreSQL**, and **React**.
+
+**AIKE** stands for **Automated Integrated Key Engine** — a centralized platform for room inventory, reservation lifecycle, and guest financial tracking.
 
 > IM1 Part 2 — Database Project
 

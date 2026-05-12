@@ -1,7 +1,7 @@
 {
-  "name": "hotel-reservation-system",
+  "name": "aike-hotel-reservation-system",
   "version": "1.0.0",
-  "description": "Hotel Room Reservation System — IM1 Part 2",
+  "description": "AIKE: A Web-Based Automated Integrated Key Experience for Hotel Reservations and Guest Management — IM1 Part 2",
   "engines": {
     "node": ">=18.0.0"
   },

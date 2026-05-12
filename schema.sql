@@ -1,5 +1,7 @@
 -- ============================================================
--- HOTEL ROOM RESERVATION DATABASE
+-- AIKE — Automated Integrated Key Engine
+-- A Web-Based Automated Integrated Key Experience for Hotel
+-- Reservations and Guest Management
 -- IM1 Part 2 — SQL Schema with Seed Data
 -- ============================================================
 -- 5 Core Tables:

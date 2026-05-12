@@ -157,7 +157,7 @@ export default function AdminPage({ onSwitchToBooking }) {
       <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <nav style={{ width: 220, background: "#18150f", borderRight: "1px solid #2d2a24", padding: "24px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
         <div style={{ padding: "0 20px 28px", borderBottom: "1px solid #2d2a24" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c", letterSpacing: 1, fontFamily: "'Libre Baskerville', serif" }}>HOTEL</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c", letterSpacing: 1, fontFamily: "'Libre Baskerville', serif" }}>AIKE</div>
           <div style={{ fontSize: 10, color: "#8a8070", letterSpacing: 3, textTransform: "uppercase", marginTop: 2 }}>Admin Panel</div>
         </div>
         <div style={{ marginTop: 16, flex: 1 }}>

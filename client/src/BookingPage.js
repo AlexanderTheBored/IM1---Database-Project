@@ -359,7 +359,7 @@ export default function BookingPage({ onSwitchToAdmin }) {
 
       {/* Nav */}
       <nav style={S.nav}>
-        <div style={S.logo}>HOTEL</div>
+        <div style={S.logo}>AIKE</div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <NavLink onClick={() => document.getElementById("rooms-section")?.scrollIntoView({ behavior: "smooth" })}>Rooms</NavLink>
           <NavLink onClick={() => document.getElementById("about-section")?.scrollIntoView({ behavior: "smooth" })}>About</NavLink>
@@ -373,9 +373,9 @@ export default function BookingPage({ onSwitchToAdmin }) {
       <div style={S.hero}>
         <div style={S.heroOverlay} />
         <div style={S.heroContent}>
-          <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", letterSpacing: 4, textTransform: "uppercase", opacity: 0.6, marginBottom: 16 }}>Welcome to</div>
+          <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", letterSpacing: 4, textTransform: "uppercase", opacity: 0.6, marginBottom: 16 }}>Welcome to AIKE</div>
           <h1 style={S.h1}>Your Perfect Stay Awaits</h1>
-          <p style={S.subtitle}>Experience unparalleled comfort and elegance. Book your room today and discover hospitality redefined.</p>
+          <p style={S.subtitle}>The Automated Integrated Key Engine — a web-based experience for hotel reservations and guest management. Book your room today and discover hospitality redefined.</p>
           <SearchBar checkIn={checkIn} checkOut={checkOut} onCheckIn={setCheckIn} onCheckOut={setCheckOut} onSearch={handleSearch} />
         </div>
       </div>
@@ -398,12 +398,12 @@ export default function BookingPage({ onSwitchToAdmin }) {
       {/* About */}
       <section id="about-section" style={{ background: "#f0ece4", padding: "60px 24px" }}>
         <div style={{ maxWidth: 700, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ ...S.h2, marginBottom: 16 }}>About Our Hotel</h2>
+          <h2 style={{ ...S.h2, marginBottom: 16 }}>About AIKE</h2>
           <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "#6b5b45", lineHeight: 1.8 }}>
-            Nestled in the heart of the city, our hotel offers a perfect blend of modern luxury and timeless elegance.
-            Whether you're here for business or leisure, every detail of your stay has been carefully curated
-            to ensure an unforgettable experience. From our thoughtfully designed rooms to our warm,
-            attentive service — welcome home.
+            AIKE — the Automated Integrated Key Engine — is a web-based platform that centralizes hotel reservations
+            and guest management into a single, seamless experience. From real-time room availability and instant
+            booking confirmations to a complete guest lifecycle from check-in to checkout, every detail has been
+            carefully designed to deliver hospitality the way it should be — effortless, transparent, and warm.
           </p>
           <div style={{ display: "flex", justifyContent: "center", gap: 48, marginTop: 32, fontFamily: "'DM Sans', sans-serif" }}>
             {[["10+", "Room Types"], ["24/7", "Front Desk"], ["100%", "Guest Satisfaction"]].map(([n, l]) => (
@@ -418,9 +418,9 @@ export default function BookingPage({ onSwitchToAdmin }) {
 
       {/* Footer */}
       <footer style={S.footer}>
-        <div style={{ color: "#8b7355", fontSize: 18, fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, letterSpacing: 2, marginBottom: 12 }}>HOTEL</div>
-        <p>IM1 Part 2 — Database Project</p>
-        <p style={{ marginTop: 4, color: "#6b5b45" }}>© 2026 Hotel Reservation System. All rights reserved.</p>
+        <div style={{ color: "#8b7355", fontSize: 18, fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, letterSpacing: 2, marginBottom: 12 }}>AIKE</div>
+        <p style={{ maxWidth: 520, margin: "0 auto", lineHeight: 1.6 }}>A Web-Based Automated Integrated Key Experience for Hotel Reservations and Guest Management</p>
+        <p style={{ marginTop: 4, color: "#6b5b45" }}>© 2026 AIKE — Automated Integrated Key Engine. All rights reserved.</p>
       </footer>
 
       {/* Room Detail Modal */}

@@ -352,7 +352,7 @@ async function start() {
   try {
     await initializeSchema();
     app.listen(PORT, () => {
-      console.log(`\n🏨 Hotel Reservation System running at http://localhost:${PORT}\n`);
+      console.log(`\n🏨 AIKE — Hotel Reservations & Guest Management running at http://localhost:${PORT}\n`);
     });
   } catch (err) {
     console.error("❌ Failed to start:", err.message);
