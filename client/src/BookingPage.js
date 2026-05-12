@@ -120,9 +120,9 @@ function RoomDetailModal({ type, index, available, availableRooms, checkIn, chec
   const nights = checkIn && checkOut ? diffDays(checkIn, checkOut) : 1;
 
   const highlights = [
-    { icon: "👥", label: "Max Occupancy", value: `${type.max_occupancy || 2} guest${(type.max_occupancy || 2) > 1 ? "s" : ""}` },
-    { icon: "📐", label: "Available Rooms", value: `${available} of ${available + availableRooms.length - available}` },
-    { icon: "💰", label: `${nights} Night${nights > 1 ? "s" : ""} Total`, value: fmt(type.nightly_rate * nights) },
+    { label: "Max Occupancy", value: `${type.max_occupancy || 2} guest${(type.max_occupancy || 2) > 1 ? "s" : ""}` },
+    { label: "Available Rooms", value: `${available} of ${availableRooms.length}` },
+    { label: `${nights} Night${nights > 1 ? "s" : ""} Total`, value: fmt(type.nightly_rate * nights) },
   ];
 
   return (
@@ -146,10 +146,9 @@ function RoomDetailModal({ type, index, available, availableRooms, checkIn, chec
           {/* Highlights */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
             {highlights.map((h) => (
-              <div key={h.label} style={{ background: "#f5f1eb", borderRadius: 10, padding: "14px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{h.icon}</div>
-                <div style={{ fontSize: 11, fontFamily: "'DM Sans', sans-serif", color: "#8a7e6e", fontWeight: 500, marginBottom: 2 }}>{h.label}</div>
-                <div style={{ fontSize: 15, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, color: "#2c2820" }}>{h.value}</div>
+              <div key={h.label} style={{ background: "#f5f1eb", borderRadius: 10, padding: "18px 16px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, fontFamily: "'DM Sans', sans-serif", color: "#8a7e6e", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>{h.label}</div>
+                <div style={{ fontSize: 16, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, color: "#2c2820" }}>{h.value}</div>
               </div>
             ))}
           </div>
