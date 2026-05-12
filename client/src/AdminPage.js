@@ -34,16 +34,16 @@ const Btn = ({ children, onClick, variant = "primary", small, disabled, style: s
 };
 
 const Input = ({ label, ...props }) => (
-  <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#8a8070", fontWeight: 500 }}>
+  <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#8a8070", fontWeight: 500, minWidth: 0 }}>
     {label}
-    <input {...props} style={{ background: "#1e1b17", border: "1px solid #3d3930", borderRadius: 6, padding: "9px 12px", color: "#e8dcc8", fontSize: 13, fontFamily: "inherit", outline: "none", ...(props.style || {}) }} />
+    <input {...props} style={{ background: "#1e1b17", border: "1px solid #3d3930", borderRadius: 6, padding: "9px 12px", color: "#e8dcc8", fontSize: 13, fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box", ...(props.style || {}) }} />
   </label>
 );
 
 const Select = ({ label, children, ...props }) => (
-  <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#8a8070", fontWeight: 500 }}>
+  <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#8a8070", fontWeight: 500, minWidth: 0 }}>
     {label}
-    <select {...props} style={{ background: "#1e1b17", border: "1px solid #3d3930", borderRadius: 6, padding: "9px 12px", color: "#e8dcc8", fontSize: 13, fontFamily: "inherit", outline: "none" }}>{children}</select>
+    <select {...props} style={{ background: "#1e1b17", border: "1px solid #3d3930", borderRadius: 6, padding: "9px 12px", color: "#e8dcc8", fontSize: 13, fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" }}>{children}</select>
   </label>
 );
 
@@ -382,10 +382,12 @@ export default function AdminPage({ onSwitchToBooking }) {
               <Input label="Address" value={modal.form.address} onChange={(e) => setModal({ ...modal, form: { ...modal.form, address: e.target.value } })} style={{ gridColumn: "span 2" }} />
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 14 }}>
+          <div style={{ marginTop: 14 }}>
             <Select label="Room" value={modal.form.roomId} onChange={(e) => setModal({ ...modal, form: { ...modal.form, roomId: Number(e.target.value) } })}>
               {rooms.map((r) => <option key={r.room_id} value={r.room_id} disabled={r.status !== "available"}>Room {r.room_number} — {r.type_name} {r.status !== "available" ? `(${r.status})` : ""}</option>)}
             </Select>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
             <Input label="Check-In" type="date" value={modal.form.checkIn} onChange={(e) => setModal({ ...modal, form: { ...modal.form, checkIn: e.target.value } })} />
             <Input label="Check-Out" type="date" value={modal.form.checkOut} onChange={(e) => setModal({ ...modal, form: { ...modal.form, checkOut: e.target.value } })} />
           </div>
