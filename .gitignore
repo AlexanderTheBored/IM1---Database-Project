@@ -5,3 +5,6 @@ client/build/
 *.db
 .DS_Store
 *.log
+
+# Claude Code worktrees
+.claude/
