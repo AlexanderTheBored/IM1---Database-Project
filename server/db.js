@@ -55,7 +55,10 @@ async function initializeSchema() {
         last_name  VARCHAR(50) NOT NULL,
         email      VARCHAR(100) UNIQUE,
         phone      VARCHAR(20),
-        address    VARCHAR(255),
+        street     VARCHAR(100),
+        city       VARCHAR(50),
+        province   VARCHAR(50),
+        country    VARCHAR(50),
         created_at TIMESTAMP DEFAULT NOW()
       );
 

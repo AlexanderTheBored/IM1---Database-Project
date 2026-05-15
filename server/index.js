@@ -144,12 +144,12 @@ app.get("/api/guests/:id", async (req, res) => {
 });
 
 app.post("/api/guests", async (req, res) => {
-  const { first_name, last_name, email, phone, address } = req.body;
+  const { first_name, last_name, email, phone, street, city, province, country } = req.body;
   if (!first_name || !last_name) return res.status(400).json({ error: "first_name and last_name are required" });
   try {
     const { rows } = await pool.query(
-      "INSERT INTO guests (first_name, last_name, email, phone, address) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-      [first_name, last_name, email || null, phone || null, address || null]
+      "INSERT INTO guests (first_name, last_name, email, phone, street, city, province, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+      [first_name, last_name, email || null, phone || null, street || null, city || null, province || null, country || null]
     );
     res.status(201).json(rows[0]);
   } catch (e) {
@@ -158,16 +158,19 @@ app.post("/api/guests", async (req, res) => {
 });
 
 app.put("/api/guests/:id", async (req, res) => {
-  const { first_name, last_name, email, phone, address } = req.body;
+  const { first_name, last_name, email, phone, street, city, province, country } = req.body;
   const { rows } = await pool.query(
     `UPDATE guests SET
       first_name = COALESCE($1, first_name),
-      last_name = COALESCE($2, last_name),
-      email = COALESCE($3, email),
-      phone = COALESCE($4, phone),
-      address = COALESCE($5, address)
-    WHERE guest_id = $6 RETURNING *`,
-    [first_name, last_name, email, phone, address, req.params.id]
+      last_name  = COALESCE($2, last_name),
+      email      = COALESCE($3, email),
+      phone      = COALESCE($4, phone),
+      street     = COALESCE($5, street),
+      city       = COALESCE($6, city),
+      province   = COALESCE($7, province),
+      country    = COALESCE($8, country)
+    WHERE guest_id = $9 RETURNING *`,
+    [first_name, last_name, email, phone, street, city, province, country, req.params.id]
   );
   res.json(rows[0]);
 });
