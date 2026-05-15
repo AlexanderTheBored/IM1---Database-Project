@@ -48,12 +48,12 @@ async function seed() {
 
     // ── Guests ──
     await client.query(`
-      INSERT INTO guests (first_name, last_name, email, phone, address) VALUES
-      ('Maria',    'Santos',     'maria.santos@email.com',   '0917-111-2233', 'Cebu City'),
-      ('Juan',     'Dela Cruz',  'juan.delacruz@email.com',  '0918-444-5566', 'Manila'),
-      ('Ana',      'Reyes',      'ana.reyes@email.com',      '0919-777-8899', 'Davao City'),
-      ('Carlos',   'Garcia',     'carlos.garcia@email.com',  '0920-222-3344', 'Quezon City'),
-      ('Patricia', 'Villanueva', 'pat.villanueva@email.com', '0921-555-6677', 'Cebu City')
+      INSERT INTO guests (first_name, last_name, email, phone, street, city, province, country) VALUES
+      ('Maria',    'Santos',     'maria.santos@email.com',   '0917-111-2233', '12 Mango Avenue',     'Cebu City',    'Cebu',          'Philippines'),
+      ('Juan',     'Dela Cruz',  'juan.delacruz@email.com',  '0918-444-5566', '88 Roxas Boulevard',  'Manila',       'Metro Manila',  'Philippines'),
+      ('Ana',      'Reyes',      'ana.reyes@email.com',      '0919-777-8899', '5 Bonifacio Street',  'Davao City',   'Davao del Sur', 'Philippines'),
+      ('Carlos',   'Garcia',     'carlos.garcia@email.com',  '0920-222-3344', '23 EDSA',             'Quezon City',  'Metro Manila',  'Philippines'),
+      ('Patricia', 'Villanueva', 'pat.villanueva@email.com', '0921-555-6677', '7 Osmeña Boulevard',  'Cebu City',    'Cebu',          'Philippines')
     `);
 
     // ── Reservations ──

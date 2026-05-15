@@ -175,7 +175,7 @@ function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialC
   const [step, setStep] = useState(1);
   const [checkIn, setCheckIn] = useState(initialCheckIn || today());
   const [checkOut, setCheckOut] = useState(initialCheckOut || tomorrow());
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", street: "", city: "" });
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
 
@@ -189,7 +189,7 @@ function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialC
     if (!form.firstName || !form.lastName || !form.email) return alert("Please fill in your name and email");
     setSubmitting(true);
     try {
-      const guest = await api("/guests", { method: "POST", body: { first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone || null, address: form.address || null } });
+      const guest = await api("/guests", { method: "POST", body: { first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone || null, street: form.street || null, city: form.city || null, province: null, country: null } });
       const reservation = await api("/reservations", { method: "POST", body: { guest_id: guest.guest_id, room_id: assignedRoom.room_id, check_in_date: checkIn, check_out_date: checkOut, total_amount: total } });
       setConfirmation({ ...reservation, guest });
       setStep(3);
@@ -285,14 +285,18 @@ function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialC
               <label style={S.label}>Email *</label>
               <input style={S.input} type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="maria@email.com" />
             </div>
+            <div style={S.formGroup}>
+              <label style={S.label}>Phone</label>
+              <input style={S.input} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0917-123-4567" />
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={S.formGroup}>
-                <label style={S.label}>Phone</label>
-                <input style={S.input} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0917-123-4567" />
+                <label style={S.label}>Street</label>
+                <input style={S.input} value={form.street} onChange={(e) => set("street", e.target.value)} placeholder="12 Mango Avenue" />
               </div>
               <div style={S.formGroup}>
-                <label style={S.label}>Address</label>
-                <input style={S.input} value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cebu City" />
+                <label style={S.label}>City</label>
+                <input style={S.input} value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Cebu City" />
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>

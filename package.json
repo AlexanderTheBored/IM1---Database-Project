@@ -12,6 +12,7 @@
     "install-all": "npm install && cd client && npm install",
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "seed": "node server/seed.js",
+    "migrate-address": "node server/migrate-address.js",
     "build": "cd client && npm run build",
     "postinstall": "cd client && npm install && npm run build"
   },

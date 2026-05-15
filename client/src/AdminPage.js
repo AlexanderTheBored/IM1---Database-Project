@@ -118,7 +118,7 @@ export default function AdminPage({ onSwitchToBooking }) {
   const updateItem = async (endpoint, data) => { await api(endpoint, { method: "PUT", body: data }); await reload(); };
 
   const openNewReservation = (prefillRoomId) => {
-    setModal({ type: "new-reservation", form: { guestMode: "existing", guestId: guests[0]?.guest_id || "", firstName: "", lastName: "", email: "", phone: "", address: "", roomId: prefillRoomId || rooms[0]?.room_id || "", checkIn: today(), checkOut: "", depositAmount: "", depositMethod: "cash" } });
+    setModal({ type: "new-reservation", form: { guestMode: "existing", guestId: guests[0]?.guest_id || "", firstName: "", lastName: "", email: "", phone: "", street: "", city: "", province: "", country: "", roomId: prefillRoomId || rooms[0]?.room_id || "", checkIn: today(), checkOut: "", depositAmount: "", depositMethod: "cash" } });
   };
   const openCheckout = (res) => {
     const nights = diffDays(res.check_in_date, res.check_out_date || today());
@@ -129,7 +129,7 @@ export default function AdminPage({ onSwitchToBooking }) {
   const openPayment = (res) => setModal({ type: "add-payment", res, amount: "", method: "cash" });
   const openNewRoom = () => setModal({ type: "new-room", form: { number: "", typeId: roomTypes[0]?.type_id || 1, floor: 1 } });
   const openNewRoomType = () => setModal({ type: "new-room-type", form: { name: "", description: "", rate: "" } });
-  const openEditGuest = (g) => setModal({ type: "edit-guest", guest: g, form: { first_name: g.first_name, last_name: g.last_name, email: g.email || "", phone: g.phone || "", address: g.address || "" } });
+  const openEditGuest = (g) => setModal({ type: "edit-guest", guest: g, form: { first_name: g.first_name, last_name: g.last_name, email: g.email || "", phone: g.phone || "", street: g.street || "", city: g.city || "", province: g.province || "", country: g.country || "" } });
   const openEditRoom = (r) => setModal({ type: "edit-room", room: r, form: { room_number: r.room_number, type_id: r.type_id, floor: r.floor, status: r.status } });
   const openEditRoomType = (t) => setModal({ type: "edit-room-type", roomType: t, form: { type_name: t.type_name, description: t.description || "", nightly_rate: t.nightly_rate, max_occupancy: t.max_occupancy || 1 } });
   const openDeleteConfirm = (message, endpoint) => setModal({ type: "delete-confirm", message, endpoint });
@@ -231,7 +231,8 @@ export default function AdminPage({ onSwitchToBooking }) {
           </div>
           <Card><Table columns={[
             { key: "name", label: "Name", render: (g) => <span style={{ fontWeight: 600 }}>{g.first_name} {g.last_name}</span> },
-            { key: "email", label: "Email" }, { key: "phone", label: "Phone" }, { key: "address", label: "Address" },
+            { key: "email", label: "Email" }, { key: "phone", label: "Phone" },
+            { key: "location", label: "City", render: (g) => [g.city, g.country].filter(Boolean).join(", ") || "—" },
             { key: "actions", label: "", render: (g) => (<div style={{ display: "flex", gap: 4 }} onClick={e=>e.stopPropagation()}>
               <Btn small variant="ghost" onClick={() => openEditGuest(g)}>Edit</Btn>
               <Btn small variant="danger" onClick={() => openDeleteConfirm(`Delete ${g.first_name} ${g.last_name}? Fails if they have reservations.`, `/guests/${g.guest_id}`)}>✕</Btn>
@@ -320,7 +321,12 @@ export default function AdminPage({ onSwitchToBooking }) {
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             <Input label="Email" value={modal.form.email} onChange={(e) => setModal({ ...modal, form: { ...modal.form, email: e.target.value } })} />
             <Input label="Phone" value={modal.form.phone} onChange={(e) => setModal({ ...modal, form: { ...modal.form, phone: e.target.value } })} />
-            <Input label="Address" value={modal.form.address} onChange={(e) => setModal({ ...modal, form: { ...modal.form, address: e.target.value } })} />
+            <Input label="Street" value={modal.form.street} onChange={(e) => setModal({ ...modal, form: { ...modal.form, street: e.target.value } })} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 10 }}>
+            <Input label="City" value={modal.form.city} onChange={(e) => setModal({ ...modal, form: { ...modal.form, city: e.target.value } })} />
+            <Input label="Province" value={modal.form.province} onChange={(e) => setModal({ ...modal, form: { ...modal.form, province: e.target.value } })} />
+            <Input label="Country" value={modal.form.country} onChange={(e) => setModal({ ...modal, form: { ...modal.form, country: e.target.value } })} />
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
             <Btn variant="secondary" onClick={() => setModal(null)}>Cancel</Btn>
@@ -379,7 +385,10 @@ export default function AdminPage({ onSwitchToBooking }) {
               <Input label="Last Name" value={modal.form.lastName} onChange={(e) => setModal({ ...modal, form: { ...modal.form, lastName: e.target.value } })} />
               <Input label="Email" value={modal.form.email} onChange={(e) => setModal({ ...modal, form: { ...modal.form, email: e.target.value } })} />
               <Input label="Phone" value={modal.form.phone} onChange={(e) => setModal({ ...modal, form: { ...modal.form, phone: e.target.value } })} />
-              <Input label="Address" value={modal.form.address} onChange={(e) => setModal({ ...modal, form: { ...modal.form, address: e.target.value } })} style={{ gridColumn: "span 2" }} />
+              <Input label="Street" value={modal.form.street} onChange={(e) => setModal({ ...modal, form: { ...modal.form, street: e.target.value } })} style={{ gridColumn: "span 2" }} />
+              <Input label="City" value={modal.form.city} onChange={(e) => setModal({ ...modal, form: { ...modal.form, city: e.target.value } })} />
+              <Input label="Province" value={modal.form.province} onChange={(e) => setModal({ ...modal, form: { ...modal.form, province: e.target.value } })} />
+              <Input label="Country" value={modal.form.country} onChange={(e) => setModal({ ...modal, form: { ...modal.form, country: e.target.value } })} style={{ gridColumn: "span 2" }} />
             </div>
           )}
           <div style={{ marginTop: 14 }}>
@@ -410,7 +419,7 @@ export default function AdminPage({ onSwitchToBooking }) {
             <Btn variant="secondary" onClick={() => setModal(null)}>Cancel</Btn>
             <Btn onClick={async () => {
               let guestId = modal.form.guestId;
-              if (modal.form.guestMode === "new") { if (!modal.form.firstName || !modal.form.lastName) return alert("Guest name required"); const ng = await createGuest({ first_name: modal.form.firstName, last_name: modal.form.lastName, email: modal.form.email || null, phone: modal.form.phone || null, address: modal.form.address || null }); guestId = ng.guest_id; }
+              if (modal.form.guestMode === "new") { if (!modal.form.firstName || !modal.form.lastName) return alert("Guest name required"); const ng = await createGuest({ first_name: modal.form.firstName, last_name: modal.form.lastName, email: modal.form.email || null, phone: modal.form.phone || null, street: modal.form.street || null, city: modal.form.city || null, province: modal.form.province || null, country: modal.form.country || null }); guestId = ng.guest_id; }
               if (!modal.form.checkIn || !modal.form.checkOut) return alert("Dates required");
               if (!modal.form.roomId) return alert("Select a room");
               const room = rooms.find((r) => r.room_id === modal.form.roomId);
