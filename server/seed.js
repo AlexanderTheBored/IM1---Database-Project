@@ -25,10 +25,11 @@ async function seed() {
     // ── Room Types ──
     await client.query(`
       INSERT INTO room_types (type_name, description, nightly_rate, max_occupancy) VALUES
-      ('Single',          'Cozy room with one single bed',                     2500, 1),
-      ('Double',          'Spacious room with a double bed',                   3800, 2),
-      ('Deluxe',          'Premium room with king bed and city view',          5500, 2),
-      ('Executive Suite', 'Luxury suite with living area and private balcony', 9000, 4)
+      ('The Standard Room',     'Classic and urban room. Best for solo and short-term stay.',                  700,   1),
+      ('The Superior Room',     'A noticeable upgrade in size and furnishings. Enhanced decor and a small seating area.', 1500,  2),
+      ('The Deluxe Room',       'Where luxury begins to feel tangible. Premium floor level and high-end interior design.', 2500,  2),
+      ('The Junior Suite',      'Very large single room with a distinct living area separated from the sleeping area.',  4000,  3),
+      ('The Presidential Suite','The pinnacle of hotel luxury. Panoramic views, expansive square footage, and impeccable service.', 10000, 4)
     `);
 
     // ── Rooms ──
@@ -37,13 +38,27 @@ async function seed() {
       ('101', 1, 1, 'available'),
       ('102', 1, 1, 'available'),
       ('103', 1, 1, 'available'),
-      ('201', 2, 2, 'available'),
-      ('202', 2, 2, 'occupied'),
-      ('203', 2, 2, 'available'),
-      ('301', 3, 3, 'available'),
-      ('302', 3, 3, 'occupied'),
-      ('401', 4, 4, 'available'),
-      ('402', 4, 4, 'available')
+      ('104', 1, 1, 'available'),
+      ('105', 1, 1, 'available'),
+      ('106', 1, 1, 'available'),
+      ('107', 1, 1, 'available'),
+      ('108', 1, 1, 'available'),
+      ('109', 1, 1, 'available'),
+      ('210', 2, 2, 'available'),
+      ('211', 2, 2, 'available'),
+      ('212', 2, 2, 'available'),
+      ('213', 2, 2, 'available'),
+      ('214', 2, 2, 'available'),
+      ('315', 3, 3, 'available'),
+      ('316', 3, 3, 'available'),
+      ('317', 3, 3, 'available'),
+      ('318', 4, 3, 'available'),
+      ('319', 4, 3, 'available'),
+      ('420', 4, 4, 'available'),
+      ('421', 4, 4, 'available'),
+      ('422', 4, 4, 'available'),
+      ('King',  5, 4, 'occupied'),
+      ('Queen', 5, 4, 'available')
     `);
 
     // ── Guests ──
@@ -59,22 +74,22 @@ async function seed() {
     // ── Reservations ──
     await client.query(`
       INSERT INTO reservations (guest_id, room_id, check_in_date, check_out_date, status, total_amount) VALUES
-      (1, 5, '2026-04-14', '2026-04-17', 'checked_in',  11400),
-      (2, 8, '2026-04-15', '2026-04-18', 'checked_in',  16500),
-      (3, 9, '2026-04-20', '2026-04-23', 'confirmed',   27000),
-      (4, 1, '2026-04-10', '2026-04-12', 'checked_out',  5000),
-      (5, 3, '2026-04-22', '2026-04-24', 'confirmed',    5000)
+      (1, 23, '2026-05-13', '2026-05-15', 'checked_in',  20000),
+      (2, 10, '2026-05-14', '2026-05-17', 'checked_in',   4500),
+      (3, 15, '2026-05-20', '2026-05-23', 'confirmed',    7500),
+      (4,  1, '2026-05-10', '2026-05-12', 'checked_out',  1400),
+      (5, 18, '2026-05-22', '2026-05-24', 'confirmed',    8000)
     `);
 
     // ── Payments ──
     await client.query(`
       INSERT INTO payments (reservation_id, amount, payment_type, payment_method, payment_date) VALUES
-      (1, 3800,  'deposit', 'cash',          '2026-04-14'),
-      (1, 7600,  'partial', 'gcash',         '2026-04-16'),
-      (2, 5500,  'deposit', 'card',          '2026-04-15'),
-      (3, 9000,  'deposit', 'bank_transfer', '2026-04-17'),
-      (4, 5000,  'full',    'cash',          '2026-04-12'),
-      (5, 2500,  'deposit', 'gcash',         '2026-04-18')
+      (1, 10000, 'deposit', 'cash',          '2026-05-13'),
+      (1, 10000, 'partial', 'gcash',         '2026-05-14'),
+      (2, 1500,  'deposit', 'card',          '2026-05-14'),
+      (3, 2500,  'deposit', 'bank_transfer', '2026-05-18'),
+      (4, 1400,  'full',    'cash',          '2026-05-12'),
+      (5, 4000,  'deposit', 'gcash',         '2026-05-20')
     `);
 
     await client.query("COMMIT");
