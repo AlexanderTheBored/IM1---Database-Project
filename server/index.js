@@ -503,7 +503,7 @@ app.get("/api/dashboard", adminOnly, async (req, res) => {
       JOIN guests g ON res.guest_id = g.guest_id
       JOIN rooms r ON res.room_id = r.room_id
       JOIN room_types rt ON r.type_id = rt.type_id
-      ORDER BY res.created_at DESC LIMIT 5
+      ORDER BY res.created_at DESC, res.reservation_id DESC LIMIT 5
     `),
   ]);
   res.json({

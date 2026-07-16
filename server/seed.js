@@ -46,7 +46,7 @@ async function seed() {
       ('107', 1, 1, 'available'),
       ('108', 1, 1, 'available'),
       ('109', 1, 1, 'available'),
-      ('210', 2, 2, 'available'),
+      ('210', 2, 2, 'occupied'),
       ('211', 2, 2, 'available'),
       ('212', 2, 2, 'available'),
       ('213', 2, 2, 'available'),
@@ -76,28 +76,30 @@ async function seed() {
     `);
 
     // ── Reservations ──
+    // Dates are relative to the day you seed, so the demo data always
+    // lines up with the live availability counters and dashboard
     await client.query(`
       INSERT INTO reservations (guest_id, room_id, check_in_date, check_out_date, status, total_amount) VALUES
-      (1, 23, '2026-05-13', '2026-05-15', 'checked_in',  20000),
-      (2, 10, '2026-05-14', '2026-05-17', 'checked_in',   4500),
-      (3, 15, '2026-05-20', '2026-05-23', 'confirmed',    7500),
-      (4,  1, '2026-05-10', '2026-05-12', 'checked_out',  1400),
-      (5, 18, '2026-05-22', '2026-05-24', 'confirmed',    8000),
-      (6, 16, '2026-07-20', '2026-07-23', 'confirmed',    7500),
-      (7, 20, '2026-07-16', '2026-07-19', 'checked_in',  12000)
+      (1, 23, CURRENT_DATE - 1, CURRENT_DATE + 1, 'checked_in',  20000),
+      (2, 10, CURRENT_DATE - 1, CURRENT_DATE + 2, 'checked_in',   4500),
+      (3, 15, CURRENT_DATE + 4, CURRENT_DATE + 7, 'confirmed',    7500),
+      (4,  1, CURRENT_DATE - 6, CURRENT_DATE - 4, 'checked_out',  1400),
+      (5, 18, CURRENT_DATE + 6, CURRENT_DATE + 8, 'confirmed',    8000),
+      (6, 16, CURRENT_DATE + 4, CURRENT_DATE + 7, 'confirmed',    7500),
+      (7, 20, CURRENT_DATE,     CURRENT_DATE + 3, 'checked_in',  12000)
     `);
 
     // ── Payments ──
     await client.query(`
       INSERT INTO payments (reservation_id, amount, payment_type, payment_method, payment_date) VALUES
-      (1, 10000, 'deposit', 'cash',          '2026-05-13'),
-      (1, 10000, 'partial', 'gcash',         '2026-05-14'),
-      (2, 1500,  'deposit', 'card',          '2026-05-14'),
-      (3, 2500,  'deposit', 'bank_transfer', '2026-05-18'),
-      (4, 1400,  'full',    'cash',          '2026-05-12'),
-      (5, 4000,  'deposit', 'gcash',         '2026-05-20'),
-      (6, 3000,  'deposit', 'gcash',         '2026-07-14'),
-      (7, 12000, 'full',    'card',          '2026-07-16')
+      (1, 10000, 'deposit', 'cash',          CURRENT_DATE - 1),
+      (1, 10000, 'partial', 'gcash',         CURRENT_DATE),
+      (2, 1500,  'deposit', 'card',          CURRENT_DATE - 1),
+      (3, 2500,  'deposit', 'bank_transfer', CURRENT_DATE - 2),
+      (4, 1400,  'full',    'cash',          CURRENT_DATE - 4),
+      (5, 4000,  'deposit', 'gcash',         CURRENT_DATE - 1),
+      (6, 3000,  'deposit', 'gcash',         CURRENT_DATE - 2),
+      (7, 12000, 'full',    'card',          CURRENT_DATE)
     `);
 
     await client.query("COMMIT");
