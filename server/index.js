@@ -147,6 +147,30 @@ app.get("/api/rooms", async (req, res) => {
   res.json(rows);
 });
 
+// Per-type room counts for a date range: total rooms + how many are free
+app.get("/api/availability", async (req, res) => {
+  const { check_in, check_out } = req.query;
+  if (!check_in || !check_out) {
+    return res.status(400).json({ error: "check_in and check_out are required" });
+  }
+  const { rows } = await pool.query(`
+    SELECT rt.type_id,
+           COUNT(r.room_id)::int AS total,
+           COUNT(r.room_id) FILTER (
+             WHERE r.status <> 'maintenance'
+               AND r.room_id NOT IN (
+                 SELECT room_id FROM reservations
+                 WHERE status IN ('confirmed', 'checked_in')
+                   AND check_in_date < $2 AND check_out_date > $1
+               )
+           )::int AS available
+    FROM room_types rt
+    LEFT JOIN rooms r ON r.type_id = rt.type_id
+    GROUP BY rt.type_id
+  `, [check_in, check_out]);
+  res.json(rows);
+});
+
 // Rooms of a type that are free for a date range (date-based, ignores current occupancy)
 app.get("/api/rooms/available", async (req, res) => {
   const { type_id, check_in, check_out } = req.query;

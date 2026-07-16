@@ -162,7 +162,7 @@ Protected endpoints need an `Authorization: Bearer <token>` header (token comes 
 
 ## Booking & Availability Behavior
 
-- Room cards on the public site always show each type's **total room count** — the number never drops when rooms get booked.
+- Room cards on the public site show **"X of Y available"**, where Y is the type's fixed total and X is how many rooms are free for the selected dates (today → tomorrow until you search). Bookings lower X for the dates they cover; the max Y never shrinks, and X recovers when a reservation is cancelled or checked out.
 - Availability is enforced **by date**: when a guest books, the server assigns the first room of that type with no overlapping `confirmed`/`checked_in` reservation for the chosen dates (rooms under maintenance are skipped). If none is free, the booking is rejected with a clear message.
 - Logged-in customers skip the guest-details form — their account is already linked to a guest record — and can view their bookings via **My Bookings**.
 

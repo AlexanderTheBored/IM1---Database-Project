@@ -11,6 +11,8 @@ async function seed() {
     // Clear tables in order (respect foreign keys)
     await client.query("DELETE FROM payments");
     await client.query("DELETE FROM reservations");
+    // Customer accounts point at guests, so clear them too; staff logins survive
+    await client.query("DELETE FROM users WHERE role = 'customer'");
     await client.query("DELETE FROM guests");
     await client.query("DELETE FROM rooms");
     await client.query("DELETE FROM room_types");

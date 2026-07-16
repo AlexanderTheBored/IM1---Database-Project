@@ -90,10 +90,15 @@ function SearchBar({ checkIn, checkOut, onCheckIn, onCheckOut, onSearch }) {
   );
 }
 
-function RoomCard({ type, total, onSelect, index }) {
+function RoomCard({ type, total, avail, onSelect, index }) {
   const img = getRoomImage(index);
+  // avail is null until the visitor searches dates; then it's the date-based free count
+  const countText = avail === null
+    ? `${total} room${total !== 1 ? "s" : ""}`
+    : avail > 0 ? `${avail} of ${total} available` : "Fully booked";
+  const countColor = avail === 0 ? "#c44" : "#4a8c5c";
   return (
-    <div onClick={() => onSelect(type, index)} style={{ ...S.roomCard, display: "flex", flexDirection: "column" }}
+    <div onClick={() => onSelect(type, index)} style={{ ...S.roomCard, opacity: avail === 0 ? 0.6 : 1, display: "flex", flexDirection: "column" }}
       onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,.1)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}>
       <img src={img} alt={type.type_name} style={S.roomImg} />
@@ -107,8 +112,8 @@ function RoomCard({ type, total, onSelect, index }) {
               <span style={S.roomRate}>{fmt(type.nightly_rate)}</span>
               <span style={S.roomRateSuffix}> /night</span>
             </div>
-            <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif", color: "#4a8c5c" }}>
-              {total} room{total !== 1 ? "s" : ""}
+            <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif", color: countColor }}>
+              {countText}
             </div>
           </div>
           <button style={{ ...S.btn, ...S.btnOutline, ...S.btnFull, fontSize: 13 }}>View Details</button>
@@ -118,13 +123,16 @@ function RoomCard({ type, total, onSelect, index }) {
   );
 }
 
-function RoomDetailModal({ type, index, total, checkIn, checkOut, onBook, onClose }) {
+function RoomDetailModal({ type, index, total, avail, checkIn, checkOut, onBook, onClose }) {
   const img = getRoomImage(index);
   const nights = checkIn && checkOut ? diffDays(checkIn, checkOut) : 1;
+  const fullyBooked = avail === 0;
 
   const highlights = [
     { label: "Max Occupancy", value: `${type.max_occupancy || 2} guest${(type.max_occupancy || 2) > 1 ? "s" : ""}` },
-    { label: "Total Rooms", value: `${total}` },
+    avail === null
+      ? { label: "Total Rooms", value: `${total}` }
+      : { label: "Available For Your Dates", value: `${avail} of ${total}` },
     { label: `${nights} Night${nights > 1 ? "s" : ""} Total`, value: fmt(type.nightly_rate * nights) },
   ];
 
@@ -162,10 +170,10 @@ function RoomDetailModal({ type, index, total, checkIn, checkOut, onBook, onClos
               <span style={{ fontSize: 26, fontWeight: 700, color: "#8b7355" }}>{fmt(type.nightly_rate)}</span>
               <span style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#a09882" }}> /night</span>
             </div>
-            {total > 0 ? (
+            {total > 0 && !fullyBooked ? (
               <button onClick={() => onBook(type)} style={{ ...S.btn, ...S.btnPrimary, padding: "14px 36px", fontSize: 15 }}>Book Now</button>
             ) : (
-              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#c44", fontWeight: 600 }}>No Rooms Yet</span>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#c44", fontWeight: 600 }}>{total > 0 ? "Fully Booked" : "No Rooms Yet"}</span>
             )}
           </div>
         </div>
@@ -407,6 +415,7 @@ export default function BookingPage({ auth, onLogout }) {
   const [checkIn, setCheckIn] = useState(today());
   const [checkOut, setCheckOut] = useState(tomorrow());
   const [searched, setSearched] = useState(false);
+  const [availability, setAvailability] = useState(null); // { type_id: available } after a date search
   const [booking, setBooking] = useState(null);
   const [detail, setDetail] = useState(null);
   const [showBookings, setShowBookings] = useState(false);
@@ -422,21 +431,48 @@ export default function BookingPage({ auth, onLogout }) {
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    // Show live availability right away for the default dates (today → tomorrow)
+    fetchAvailability(today(), tomorrow()).catch(() => {});
+  }, []);
 
   // Full room count per type — bookings never reduce this number
   const totalRooms = (typeId) => rooms.filter((r) => r.type_id === typeId).length;
 
-  const handleSearch = () => setSearched(true);
+  // Free count per type for the selected dates — null only while loading
+  const availRooms = (typeId) => (availability ? (availability[typeId] ?? 0) : null);
+
+  const fetchAvailability = async (ci, co) => {
+    const rows = await api(`/availability?check_in=${ci}&check_out=${co}`);
+    const map = {};
+    rows.forEach((r) => { map[r.type_id] = r.available; });
+    setAvailability(map);
+  };
+
+  const handleSearch = async () => {
+    if (!checkIn || !checkOut || new Date(checkOut) <= new Date(checkIn)) return alert("Please pick a valid date range");
+    try {
+      await fetchAvailability(checkIn, checkOut);
+      setSearched(true);
+    } catch (e) {
+      alert(e.message);
+    }
+  };
 
   const handleSelect = (type, index) => {
     setDetail({ type, index });
   };
 
   const handleBook = (type) => {
-    if (totalRooms(type.type_id) === 0) return;
+    if (totalRooms(type.type_id) === 0 || availRooms(type.type_id) === 0) return;
     setDetail(null);
     setBooking({ type });
+  };
+
+  const refresh = () => {
+    loadData();
+    fetchAvailability(checkIn || today(), checkOut || tomorrow()).catch(() => {});
   };
 
   if (loading) {
@@ -495,7 +531,7 @@ export default function BookingPage({ auth, onLogout }) {
         </p>
         <div style={S.roomGrid}>
           {roomTypes.map((type, i) => (
-            <RoomCard key={type.type_id} type={type} index={i} total={totalRooms(type.type_id)} onSelect={handleSelect} />
+            <RoomCard key={type.type_id} type={type} index={i} total={totalRooms(type.type_id)} avail={availRooms(type.type_id)} onSelect={handleSelect} />
           ))}
         </div>
       </section>
@@ -534,6 +570,7 @@ export default function BookingPage({ auth, onLogout }) {
           type={detail.type}
           index={detail.index}
           total={totalRooms(detail.type.type_id)}
+          avail={availRooms(detail.type.type_id)}
           checkIn={checkIn}
           checkOut={checkOut}
           onBook={handleBook}
@@ -548,8 +585,8 @@ export default function BookingPage({ auth, onLogout }) {
           auth={auth}
           checkIn={checkIn}
           checkOut={checkOut}
-          onClose={() => { setBooking(null); loadData(); }}
-          onSuccess={() => loadData()}
+          onClose={() => { setBooking(null); refresh(); }}
+          onSuccess={() => refresh()}
         />
       )}
 
