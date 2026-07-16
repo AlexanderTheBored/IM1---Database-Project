@@ -70,7 +70,9 @@ async function seed() {
       ('Juan',     'Dela Cruz',  'juan.delacruz@email.com',  '0918-444-5566', '88 Roxas Boulevard',  'Manila',       'Metro Manila',  'Philippines'),
       ('Ana',      'Reyes',      'ana.reyes@email.com',      '0919-777-8899', '5 Bonifacio Street',  'Davao City',   'Davao del Sur', 'Philippines'),
       ('Carlos',   'Garcia',     'carlos.garcia@email.com',  '0920-222-3344', '23 EDSA',             'Quezon City',  'Metro Manila',  'Philippines'),
-      ('Patricia', 'Villanueva', 'pat.villanueva@email.com', '0921-555-6677', '7 Osmeña Boulevard',  'Cebu City',    'Cebu',          'Philippines')
+      ('Patricia', 'Villanueva', 'pat.villanueva@email.com', '0921-555-6677', '7 Osmeña Boulevard',  'Cebu City',    'Cebu',          'Philippines'),
+      ('Aike',     'Dineros',    'aike.dineros@email.com',   '0922-888-9900', '45 Lahug Drive',      'Cebu City',    'Cebu',          'Philippines'),
+      ('Bubbles',  'Librado',    'bubbles.librado@email.com','0923-333-4455', '9 Banilad Road',      'Mandaue City', 'Cebu',          'Philippines')
     `);
 
     // ── Reservations ──
