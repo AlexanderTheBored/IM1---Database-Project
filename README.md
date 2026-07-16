@@ -39,6 +39,22 @@ payments
 - **guests** — Guest registry with name, email, phone, address
 - **reservations** — Bookings linking a guest to a room with check-in/out dates and status
 - **payments** — Financial transactions (deposits, partial, full, refunds) per reservation
+- **users** — Login accounts with roles (`admin`, `employee`, `customer`); customers link to a guest record
+
+---
+
+## Logins
+
+Go to `/login` (no link on the public site). Default staff accounts are created automatically on first server start:
+
+| Role     | Username   | Default Password | Access                                              |
+|----------|------------|------------------|-----------------------------------------------------|
+| Admin    | `admin`    | `admin123`       | Full admin panel: dashboard, rooms, room types, everything |
+| Employee | `employee` | `employee123`    | Front desk: reservations, guests, payments          |
+| Customer | (register) | —                | Books rooms, sees own bookings under "My Bookings"  |
+
+Customers can register themselves from the login page. Booking without an account still works (guest checkout).
+Override the default staff passwords with the `ADMIN_PASSWORD` / `EMPLOYEE_PASSWORD` environment variables, and set `JWT_SECRET` in production.
 
 ---
 
@@ -116,20 +132,39 @@ Opens at `http://localhost:3000` (frontend) + `http://localhost:5000` (API)
 
 ## API Endpoints
 
-| Method | Endpoint                           | Description              |
-|--------|-------------------------------------|--------------------------|
-| GET    | `/api/dashboard`                   | Dashboard stats          |
-| GET    | `/api/room-types`                  | List all room types      |
-| POST   | `/api/room-types`                  | Add room type            |
-| GET    | `/api/rooms`                       | List all rooms           |
-| POST   | `/api/rooms`                       | Add a room               |
-| GET    | `/api/guests`                      | List all guests          |
-| POST   | `/api/guests`                      | Register a guest         |
-| GET    | `/api/reservations`                | List all reservations    |
-| POST   | `/api/reservations`                | Create a reservation     |
-| PATCH  | `/api/reservations/:id/status`     | Check-in / Check-out     |
-| GET    | `/api/payments`                    | List all payments        |
-| POST   | `/api/payments`                    | Record a payment         |
+Protected endpoints need an `Authorization: Bearer <token>` header (token comes from login/register).
+
+| Method | Endpoint                           | Description                                  | Access         |
+|--------|-------------------------------------|----------------------------------------------|----------------|
+| POST   | `/api/auth/register`               | Create a customer account (+ guest record)   | Public         |
+| POST   | `/api/auth/login`                  | Log in, returns JWT token + role             | Public         |
+| GET    | `/api/auth/me`                     | Current logged-in user                       | Logged in      |
+| GET    | `/api/room-types`                  | List all room types                          | Public         |
+| POST/PUT/DELETE | `/api/room-types...`      | Manage room types                            | Admin          |
+| GET    | `/api/rooms`                       | List all rooms                               | Public         |
+| GET    | `/api/rooms/available`             | Rooms of a type free for a date range        | Public         |
+| POST/PUT/DELETE | `/api/rooms...`           | Manage rooms                                 | Admin          |
+| GET    | `/api/guests`                      | List all guests                              | Staff          |
+| POST   | `/api/guests`                      | Register a guest (reuses record if email exists) | Public     |
+| PUT    | `/api/guests/:id`                  | Edit a guest                                 | Staff          |
+| DELETE | `/api/guests/:id`                  | Delete a guest                               | Admin          |
+| GET    | `/api/reservations`                | List all reservations                        | Staff          |
+| GET    | `/api/my-reservations`             | Logged-in customer's own bookings            | Logged in      |
+| POST   | `/api/reservations`                | Create a reservation — pass `type_id` to auto-assign a room free for the dates, or `room_id` for a specific room | Public |
+| PATCH  | `/api/reservations/:id/status`     | Check-in / Check-out / Cancel                | Staff          |
+| DELETE | `/api/reservations/:id`            | Delete a reservation                         | Admin          |
+| GET/POST/DELETE | `/api/payments...`        | List / record / delete payments              | Staff          |
+| GET    | `/api/dashboard`                   | Dashboard stats (incl. revenue)              | Admin          |
+
+*Staff = admin or employee.*
+
+---
+
+## Booking & Availability Behavior
+
+- Room cards on the public site always show each type's **total room count** — the number never drops when rooms get booked.
+- Availability is enforced **by date**: when a guest books, the server assigns the first room of that type with no overlapping `confirmed`/`checked_in` reservation for the chosen dates (rooms under maintenance are skipped). If none is free, the booking is rejected with a clear message.
+- Logged-in customers skip the guest-details form — their account is already linked to a guest record — and can view their bookings via **My Bookings**.
 
 ---
 

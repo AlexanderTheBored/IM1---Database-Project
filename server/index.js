@@ -1,16 +1,90 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const bcrypt = require("bcryptjs");
 const { pool, initializeSchema } = require("./db");
+const { signToken, attachUser, requireRole } = require("./auth");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+app.use(attachUser);
 
 // Serve React build in production
 app.use(express.static(path.join(__dirname, "..", "client", "build")));
+
+const staffOnly = requireRole("admin", "employee");
+const adminOnly = requireRole("admin");
+
+// ════════════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════════════
+app.post("/api/auth/register", async (req, res) => {
+  const { username, email, password, first_name, last_name, phone } = req.body;
+  if (!username || !email || !password || !first_name || !last_name) {
+    return res.status(400).json({ error: "username, email, password, first_name, and last_name are required" });
+  }
+  if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const existing = await client.query("SELECT 1 FROM users WHERE username = $1 OR email = $2", [username, email]);
+    if (existing.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Username or email already taken" });
+    }
+    // Link to an existing guest record by email, or create one
+    let guest = await client.query("SELECT guest_id FROM guests WHERE email = $1", [email]);
+    let guestId;
+    if (guest.rows.length) {
+      guestId = guest.rows[0].guest_id;
+    } else {
+      const inserted = await client.query(
+        "INSERT INTO guests (first_name, last_name, email, phone) VALUES ($1, $2, $3, $4) RETURNING guest_id",
+        [first_name, last_name, email, phone || null]
+      );
+      guestId = inserted.rows[0].guest_id;
+    }
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await client.query(
+      "INSERT INTO users (username, email, password_hash, role, guest_id) VALUES ($1, $2, $3, 'customer', $4) RETURNING user_id, username, email, role, guest_id",
+      [username, email, hash, guestId]
+    );
+    await client.query("COMMIT");
+    const user = rows[0];
+    res.status(201).json({ token: signToken(user), user });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Registration failed" });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "username and password are required" });
+  const { rows } = await pool.query(
+    "SELECT * FROM users WHERE username = $1 OR email = $1",
+    [username]
+  );
+  if (!rows.length) return res.status(401).json({ error: "Invalid username or password" });
+  const user = rows[0];
+  const ok = await bcrypt.compare(password, user.password_hash);
+  if (!ok) return res.status(401).json({ error: "Invalid username or password" });
+  res.json({
+    token: signToken(user),
+    user: { user_id: user.user_id, username: user.username, email: user.email, role: user.role, guest_id: user.guest_id },
+  });
+});
+
+app.get("/api/auth/me", (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Not logged in" });
+  res.json(req.user);
+});
 
 // ════════════════════════════════════════════════
 //  ROOM TYPES
@@ -26,7 +100,7 @@ app.get("/api/room-types/:id", async (req, res) => {
   res.json(rows[0]);
 });
 
-app.post("/api/room-types", async (req, res) => {
+app.post("/api/room-types", adminOnly, async (req, res) => {
   const { type_name, description, nightly_rate, max_occupancy } = req.body;
   if (!type_name || !nightly_rate) return res.status(400).json({ error: "type_name and nightly_rate are required" });
   const { rows } = await pool.query(
@@ -36,7 +110,7 @@ app.post("/api/room-types", async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-app.put("/api/room-types/:id", async (req, res) => {
+app.put("/api/room-types/:id", adminOnly, async (req, res) => {
   const { type_name, description, nightly_rate, max_occupancy } = req.body;
   const { rows } = await pool.query(
     `UPDATE room_types SET
@@ -51,7 +125,7 @@ app.put("/api/room-types/:id", async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete("/api/room-types/:id", async (req, res) => {
+app.delete("/api/room-types/:id", adminOnly, async (req, res) => {
   try {
     await pool.query("DELETE FROM room_types WHERE type_id = $1", [req.params.id]);
     res.json({ message: "Deleted" });
@@ -73,6 +147,28 @@ app.get("/api/rooms", async (req, res) => {
   res.json(rows);
 });
 
+// Rooms of a type that are free for a date range (date-based, ignores current occupancy)
+app.get("/api/rooms/available", async (req, res) => {
+  const { type_id, check_in, check_out } = req.query;
+  if (!type_id || !check_in || !check_out) {
+    return res.status(400).json({ error: "type_id, check_in, and check_out are required" });
+  }
+  const { rows } = await pool.query(`
+    SELECT r.*, rt.type_name, rt.nightly_rate
+    FROM rooms r
+    JOIN room_types rt ON r.type_id = rt.type_id
+    WHERE r.type_id = $1
+      AND r.status <> 'maintenance'
+      AND r.room_id NOT IN (
+        SELECT room_id FROM reservations
+        WHERE status IN ('confirmed', 'checked_in')
+          AND check_in_date < $3 AND check_out_date > $2
+      )
+    ORDER BY r.room_number
+  `, [type_id, check_in, check_out]);
+  res.json(rows);
+});
+
 app.get("/api/rooms/:id", async (req, res) => {
   const { rows } = await pool.query(`
     SELECT r.*, rt.type_name, rt.nightly_rate
@@ -83,7 +179,7 @@ app.get("/api/rooms/:id", async (req, res) => {
   res.json(rows[0]);
 });
 
-app.post("/api/rooms", async (req, res) => {
+app.post("/api/rooms", adminOnly, async (req, res) => {
   const { room_number, type_id, floor } = req.body;
   if (!room_number || !type_id) return res.status(400).json({ error: "room_number and type_id are required" });
   try {
@@ -97,7 +193,7 @@ app.post("/api/rooms", async (req, res) => {
   }
 });
 
-app.put("/api/rooms/:id", async (req, res) => {
+app.put("/api/rooms/:id", adminOnly, async (req, res) => {
   const { room_number, type_id, floor, status } = req.body;
   const { rows } = await pool.query(
     `UPDATE rooms SET
@@ -111,7 +207,7 @@ app.put("/api/rooms/:id", async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete("/api/rooms/:id", async (req, res) => {
+app.delete("/api/rooms/:id", adminOnly, async (req, res) => {
   try {
     await pool.query("DELETE FROM rooms WHERE room_id = $1", [req.params.id]);
     res.json({ message: "Deleted" });
@@ -123,7 +219,7 @@ app.delete("/api/rooms/:id", async (req, res) => {
 // ════════════════════════════════════════════════
 //  GUESTS
 // ════════════════════════════════════════════════
-app.get("/api/guests", async (req, res) => {
+app.get("/api/guests", staffOnly, async (req, res) => {
   const { search } = req.query;
   let result;
   if (search) {
@@ -137,7 +233,7 @@ app.get("/api/guests", async (req, res) => {
   res.json(result.rows);
 });
 
-app.get("/api/guests/:id", async (req, res) => {
+app.get("/api/guests/:id", staffOnly, async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM guests WHERE guest_id = $1", [req.params.id]);
   if (!rows.length) return res.status(404).json({ error: "Guest not found" });
   res.json(rows[0]);
@@ -147,17 +243,35 @@ app.post("/api/guests", async (req, res) => {
   const { first_name, last_name, email, phone, street, city, province, country } = req.body;
   if (!first_name || !last_name) return res.status(400).json({ error: "first_name and last_name are required" });
   try {
+    // If the email already belongs to a guest, reuse that record (repeat guest booking)
+    if (email) {
+      const existing = await pool.query("SELECT * FROM guests WHERE email = $1", [email]);
+      if (existing.rows.length) {
+        const { rows } = await pool.query(
+          `UPDATE guests SET
+            first_name = $1, last_name = $2,
+            phone    = COALESCE($3, phone),
+            street   = COALESCE($4, street),
+            city     = COALESCE($5, city),
+            province = COALESCE($6, province),
+            country  = COALESCE($7, country)
+          WHERE email = $8 RETURNING *`,
+          [first_name, last_name, phone || null, street || null, city || null, province || null, country || null, email]
+        );
+        return res.status(200).json(rows[0]);
+      }
+    }
     const { rows } = await pool.query(
       "INSERT INTO guests (first_name, last_name, email, phone, street, city, province, country) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
       [first_name, last_name, email || null, phone || null, street || null, city || null, province || null, country || null]
     );
     res.status(201).json(rows[0]);
   } catch (e) {
-    res.status(400).json({ error: "Email already registered" });
+    res.status(400).json({ error: "Could not save guest details" });
   }
 });
 
-app.put("/api/guests/:id", async (req, res) => {
+app.put("/api/guests/:id", staffOnly, async (req, res) => {
   const { first_name, last_name, email, phone, street, city, province, country } = req.body;
   const { rows } = await pool.query(
     `UPDATE guests SET
@@ -175,7 +289,7 @@ app.put("/api/guests/:id", async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete("/api/guests/:id", async (req, res) => {
+app.delete("/api/guests/:id", adminOnly, async (req, res) => {
   try {
     await pool.query("DELETE FROM guests WHERE guest_id = $1", [req.params.id]);
     res.json({ message: "Deleted" });
@@ -187,7 +301,21 @@ app.delete("/api/guests/:id", async (req, res) => {
 // ════════════════════════════════════════════════
 //  RESERVATIONS
 // ════════════════════════════════════════════════
-app.get("/api/reservations", async (req, res) => {
+// A logged-in customer's own reservations
+app.get("/api/my-reservations", requireRole("customer", "admin", "employee"), async (req, res) => {
+  if (!req.user.guest_id) return res.json([]);
+  const { rows } = await pool.query(`
+    SELECT res.*, r.room_number, r.floor, rt.type_name, rt.nightly_rate
+    FROM reservations res
+    JOIN rooms r ON res.room_id = r.room_id
+    JOIN room_types rt ON r.type_id = rt.type_id
+    WHERE res.guest_id = $1
+    ORDER BY res.check_in_date DESC
+  `, [req.user.guest_id]);
+  res.json(rows);
+});
+
+app.get("/api/reservations", staffOnly, async (req, res) => {
   const { status } = req.query;
   let query = `
     SELECT res.*,
@@ -209,7 +337,7 @@ app.get("/api/reservations", async (req, res) => {
   res.json(rows);
 });
 
-app.get("/api/reservations/:id", async (req, res) => {
+app.get("/api/reservations/:id", staffOnly, async (req, res) => {
   const { rows } = await pool.query(`
     SELECT res.*,
            g.first_name, g.last_name, g.email AS guest_email, g.phone AS guest_phone,
@@ -226,26 +354,45 @@ app.get("/api/reservations/:id", async (req, res) => {
 });
 
 app.post("/api/reservations", async (req, res) => {
-  const { guest_id, room_id, check_in_date, check_out_date, total_amount } = req.body;
-  if (!guest_id || !room_id || !check_in_date || !check_out_date) {
-    return res.status(400).json({ error: "guest_id, room_id, check_in_date, and check_out_date are required" });
+  const { guest_id, room_id, type_id, check_in_date, check_out_date, total_amount } = req.body;
+  if (!guest_id || (!room_id && !type_id) || !check_in_date || !check_out_date) {
+    return res.status(400).json({ error: "guest_id, room_id (or type_id), check_in_date, and check_out_date are required" });
   }
-  // Check for room conflict
-  const conflict = await pool.query(`
-    SELECT reservation_id FROM reservations
-    WHERE room_id = $1 AND status IN ('confirmed', 'checked_in')
-      AND check_in_date < $2 AND check_out_date > $3
-  `, [room_id, check_out_date, check_in_date]);
-  if (conflict.rows.length) return res.status(409).json({ error: "Room is already booked for these dates" });
+
+  let assignedRoomId = room_id;
+  if (assignedRoomId) {
+    // Explicit room: check it's free for the dates
+    const conflict = await pool.query(`
+      SELECT reservation_id FROM reservations
+      WHERE room_id = $1 AND status IN ('confirmed', 'checked_in')
+        AND check_in_date < $2 AND check_out_date > $3
+    `, [assignedRoomId, check_out_date, check_in_date]);
+    if (conflict.rows.length) return res.status(409).json({ error: "Room is already booked for these dates" });
+  } else {
+    // Auto-assign: first room of the type free for the dates
+    const free = await pool.query(`
+      SELECT room_id FROM rooms
+      WHERE type_id = $1 AND status <> 'maintenance'
+        AND room_id NOT IN (
+          SELECT room_id FROM reservations
+          WHERE status IN ('confirmed', 'checked_in')
+            AND check_in_date < $2 AND check_out_date > $3
+        )
+      ORDER BY room_number LIMIT 1
+    `, [type_id, check_out_date, check_in_date]);
+    if (!free.rows.length) return res.status(409).json({ error: "No rooms of this type are available for these dates" });
+    assignedRoomId = free.rows[0].room_id;
+  }
 
   const { rows } = await pool.query(
     "INSERT INTO reservations (guest_id, room_id, check_in_date, check_out_date, status, total_amount) VALUES ($1, $2, $3, $4, 'confirmed', $5) RETURNING *",
-    [guest_id, room_id, check_in_date, check_out_date, total_amount || null]
+    [guest_id, assignedRoomId, check_in_date, check_out_date, total_amount || null]
   );
-  res.status(201).json(rows[0]);
+  const roomInfo = await pool.query("SELECT room_number, floor FROM rooms WHERE room_id = $1", [assignedRoomId]);
+  res.status(201).json({ ...rows[0], ...roomInfo.rows[0] });
 });
 
-app.patch("/api/reservations/:id/status", async (req, res) => {
+app.patch("/api/reservations/:id/status", staffOnly, async (req, res) => {
   const { status } = req.body;
   const validStatuses = ["confirmed", "checked_in", "checked_out", "cancelled"];
   if (!validStatuses.includes(status)) return res.status(400).json({ error: "Invalid status" });
@@ -268,7 +415,7 @@ app.patch("/api/reservations/:id/status", async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete("/api/reservations/:id", async (req, res) => {
+app.delete("/api/reservations/:id", adminOnly, async (req, res) => {
   try {
     await pool.query("DELETE FROM reservations WHERE reservation_id = $1", [req.params.id]);
     res.json({ message: "Deleted" });
@@ -280,7 +427,7 @@ app.delete("/api/reservations/:id", async (req, res) => {
 // ════════════════════════════════════════════════
 //  PAYMENTS
 // ════════════════════════════════════════════════
-app.get("/api/payments", async (req, res) => {
+app.get("/api/payments", staffOnly, async (req, res) => {
   const { reservation_id } = req.query;
   let query = `
     SELECT p.*,
@@ -301,7 +448,7 @@ app.get("/api/payments", async (req, res) => {
   res.json(rows);
 });
 
-app.post("/api/payments", async (req, res) => {
+app.post("/api/payments", staffOnly, async (req, res) => {
   const { reservation_id, amount, payment_type, payment_method, payment_date } = req.body;
   if (!reservation_id || !amount) return res.status(400).json({ error: "reservation_id and amount are required" });
   const { rows } = await pool.query(
@@ -311,7 +458,7 @@ app.post("/api/payments", async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-app.delete("/api/payments/:id", async (req, res) => {
+app.delete("/api/payments/:id", staffOnly, async (req, res) => {
   await pool.query("DELETE FROM payments WHERE payment_id = $1", [req.params.id]);
   res.json({ message: "Deleted" });
 });
@@ -319,7 +466,7 @@ app.delete("/api/payments/:id", async (req, res) => {
 // ════════════════════════════════════════════════
 //  DASHBOARD
 // ════════════════════════════════════════════════
-app.get("/api/dashboard", async (req, res) => {
+app.get("/api/dashboard", adminOnly, async (req, res) => {
   const [totalR, occR, availR, activeR, revR, recentR] = await Promise.all([
     pool.query("SELECT COUNT(*) as count FROM rooms"),
     pool.query("SELECT COUNT(*) as count FROM rooms WHERE status = 'occupied'"),

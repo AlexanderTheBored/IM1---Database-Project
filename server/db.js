@@ -95,10 +95,47 @@ async function initializeSchema() {
         payment_date   DATE NOT NULL,
         created_at     TIMESTAMP DEFAULT NOW()
       );
+
+      -- ═══════════════════════════════════════════════
+      -- TABLE 6: users (login accounts)
+      -- ═══════════════════════════════════════════════
+      CREATE TABLE IF NOT EXISTS users (
+        user_id       SERIAL PRIMARY KEY,
+        username      VARCHAR(50) NOT NULL UNIQUE,
+        email         VARCHAR(100) UNIQUE,
+        password_hash VARCHAR(100) NOT NULL,
+        role          VARCHAR(20) NOT NULL DEFAULT 'customer'
+                      CHECK (role IN ('admin', 'employee', 'customer')),
+        guest_id      INTEGER REFERENCES guests(guest_id)
+                      ON UPDATE CASCADE ON DELETE SET NULL,
+        created_at    TIMESTAMP DEFAULT NOW()
+      );
     `);
+
+    await seedDefaultStaff(client);
     console.log("✅ Database schema initialized");
   } finally {
     client.release();
+  }
+}
+
+// Create the default admin & employee accounts if they don't exist yet
+async function seedDefaultStaff(client) {
+  const bcrypt = require("bcryptjs");
+  const staff = [
+    { username: "admin", role: "admin", password: process.env.ADMIN_PASSWORD || "admin123" },
+    { username: "employee", role: "employee", password: process.env.EMPLOYEE_PASSWORD || "employee123" },
+  ];
+  for (const s of staff) {
+    const { rows } = await client.query("SELECT 1 FROM users WHERE username = $1", [s.username]);
+    if (!rows.length) {
+      const hash = await bcrypt.hash(s.password, 10);
+      await client.query(
+        "INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)",
+        [s.username, hash, s.role]
+      );
+      console.log(`👤 Created default ${s.role} account: ${s.username}`);
+    }
   }
 }
 

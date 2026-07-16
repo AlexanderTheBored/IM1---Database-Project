@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { authHeaders, clearAuth } from "./auth";
 
 const API = "/api";
 
@@ -8,9 +9,15 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 async function api(path, opts = {}) {
   const res = await fetch(`${API}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
+  if (res.status === 401) {
+    // Session expired — back to login
+    clearAuth();
+    window.location.href = "/login";
+    return {};
+  }
   return res.json();
 }
 
@@ -86,8 +93,9 @@ const Stat = ({ label, value, accent }) => (
   </Card>
 );
 
-export default function AdminPage({ onSwitchToBooking }) {
-  const [tab, setTab] = useState("dashboard");
+export default function AdminPage({ user, onLogout }) {
+  const isAdmin = user?.role === "admin";
+  const [tab, setTab] = useState(isAdmin ? "dashboard" : "reservations");
   const [roomTypes, setRoomTypes] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [guests, setGuests] = useState([]);
@@ -102,12 +110,13 @@ export default function AdminPage({ onSwitchToBooking }) {
   const reload = useCallback(async () => {
     const [rt, rm, g, res, pay, dash] = await Promise.all([
       api("/room-types"), api("/rooms"), api("/guests"),
-      api("/reservations"), api("/payments"), api("/dashboard"),
+      api("/reservations"), api("/payments"),
+      isAdmin ? api("/dashboard") : Promise.resolve({}),
     ]);
     setRoomTypes(rt); setRooms(rm); setGuests(g);
     setReservations(res); setPayments(pay); setDashboard(dash);
     setLoading(false);
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -141,14 +150,15 @@ export default function AdminPage({ onSwitchToBooking }) {
     setModal({ type: "res-detail", res, nights, total, paid, resPayments });
   };
 
+  // Employees get front-desk tabs only; admins see everything
   const navItems = [
-    { key: "dashboard", icon: "◈", label: "Dashboard" },
-    { key: "rooms", icon: "⌂", label: "Rooms" },
+    { key: "dashboard", icon: "◈", label: "Dashboard", adminOnly: true },
+    { key: "rooms", icon: "⌂", label: "Rooms", adminOnly: true },
     { key: "guests", icon: "☺", label: "Guests" },
     { key: "reservations", icon: "▤", label: "Reservations" },
     { key: "payments", icon: "₱", label: "Payments" },
-    { key: "room-types", icon: "★", label: "Room Types" },
-  ];
+    { key: "room-types", icon: "★", label: "Room Types", adminOnly: true },
+  ].filter((n) => isAdmin || !n.adminOnly);
 
   if (loading) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#141210", color: "#c9a84c", fontSize: 18 }}>Loading...</div>;
 
@@ -158,7 +168,7 @@ export default function AdminPage({ onSwitchToBooking }) {
       <nav style={{ width: 220, background: "#18150f", borderRight: "1px solid #2d2a24", padding: "24px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
         <div style={{ padding: "0 20px 28px", borderBottom: "1px solid #2d2a24" }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c", letterSpacing: 1, fontFamily: "'Libre Baskerville', serif" }}>AIKE</div>
-          <div style={{ fontSize: 10, color: "#8a8070", letterSpacing: 3, textTransform: "uppercase", marginTop: 2 }}>Admin Panel</div>
+          <div style={{ fontSize: 10, color: "#8a8070", letterSpacing: 3, textTransform: "uppercase", marginTop: 2 }}>{isAdmin ? "Admin Panel" : "Front Desk"}</div>
         </div>
         <div style={{ marginTop: 16, flex: 1 }}>
           {navItems.map((n) => (
@@ -169,8 +179,12 @@ export default function AdminPage({ onSwitchToBooking }) {
           ))}
         </div>
         <div style={{ padding: "16px 20px", borderTop: "1px solid #2d2a24", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 11, color: "#8a8070", textAlign: "center" }}>
+            Signed in as <span style={{ color: "#c9a84c", fontWeight: 700 }}>{user?.username}</span> · {user?.role}
+          </div>
           <Btn onClick={() => openNewReservation()} style={{ width: "100%" }}>+ New Booking</Btn>
-          {onSwitchToBooking && <Btn variant="ghost" onClick={onSwitchToBooking} style={{ width: "100%", fontSize: 11 }}>← View Booking Site</Btn>}
+          <Btn variant="ghost" onClick={() => (window.location.href = "/")} style={{ width: "100%", fontSize: 11 }}>← View Booking Site</Btn>
+          <Btn variant="danger" small onClick={onLogout} style={{ width: "100%" }}>Logout</Btn>
         </div>
       </nav>
 

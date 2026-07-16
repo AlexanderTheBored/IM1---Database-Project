@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { authHeaders } from "./auth";
 
 const API = "/api";
 const fmt = (n) => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
@@ -8,10 +9,12 @@ const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); retur
 
 async function api(path, opts = {}) {
   const res = await fetch(`${API}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
 }
 
 // Images by index — each room type gets a unique photo regardless of name
@@ -87,11 +90,11 @@ function SearchBar({ checkIn, checkOut, onCheckIn, onCheckOut, onSearch }) {
   );
 }
 
-function RoomCard({ type, available, onSelect, index }) {
+function RoomCard({ type, total, onSelect, index }) {
   const img = getRoomImage(index);
   return (
-    <div onClick={() => onSelect(type, index)} style={{ ...S.roomCard, opacity: available === 0 ? 0.5 : 1, display: "flex", flexDirection: "column" }}
-      onMouseEnter={(e) => { if (available > 0) e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,.1)"; }}
+    <div onClick={() => onSelect(type, index)} style={{ ...S.roomCard, display: "flex", flexDirection: "column" }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,.1)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}>
       <img src={img} alt={type.type_name} style={S.roomImg} />
       <div style={{ ...S.roomBody, display: "flex", flexDirection: "column", flex: 1 }}>
@@ -104,8 +107,8 @@ function RoomCard({ type, available, onSelect, index }) {
               <span style={S.roomRate}>{fmt(type.nightly_rate)}</span>
               <span style={S.roomRateSuffix}> /night</span>
             </div>
-            <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif", color: available > 0 ? "#4a8c5c" : "#c44" }}>
-              {available > 0 ? `${available} available` : "Fully booked"}
+            <div style={{ fontSize: 12, fontFamily: "'DM Sans', sans-serif", color: "#4a8c5c" }}>
+              {total} room{total !== 1 ? "s" : ""}
             </div>
           </div>
           <button style={{ ...S.btn, ...S.btnOutline, ...S.btnFull, fontSize: 13 }}>View Details</button>
@@ -115,13 +118,13 @@ function RoomCard({ type, available, onSelect, index }) {
   );
 }
 
-function RoomDetailModal({ type, index, available, availableRooms, checkIn, checkOut, onBook, onClose }) {
+function RoomDetailModal({ type, index, total, checkIn, checkOut, onBook, onClose }) {
   const img = getRoomImage(index);
   const nights = checkIn && checkOut ? diffDays(checkIn, checkOut) : 1;
 
   const highlights = [
     { label: "Max Occupancy", value: `${type.max_occupancy || 2} guest${(type.max_occupancy || 2) > 1 ? "s" : ""}` },
-    { label: "Available Rooms", value: `${available} of ${availableRooms.length}` },
+    { label: "Total Rooms", value: `${total}` },
     { label: `${nights} Night${nights > 1 ? "s" : ""} Total`, value: fmt(type.nightly_rate * nights) },
   ];
 
@@ -159,10 +162,10 @@ function RoomDetailModal({ type, index, available, availableRooms, checkIn, chec
               <span style={{ fontSize: 26, fontWeight: 700, color: "#8b7355" }}>{fmt(type.nightly_rate)}</span>
               <span style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: "#a09882" }}> /night</span>
             </div>
-            {available > 0 ? (
+            {total > 0 ? (
               <button onClick={() => onBook(type)} style={{ ...S.btn, ...S.btnPrimary, padding: "14px 36px", fontSize: 15 }}>Book Now</button>
             ) : (
-              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#c44", fontWeight: 600 }}>Fully Booked</span>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#c44", fontWeight: 600 }}>No Rooms Yet</span>
             )}
           </div>
         </div>
@@ -171,7 +174,7 @@ function RoomDetailModal({ type, index, available, availableRooms, checkIn, chec
   );
 }
 
-function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialCheckOut, onClose, onSuccess }) {
+function BookingModal({ type, checkIn: initialCheckIn, checkOut: initialCheckOut, auth, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const [checkIn, setCheckIn] = useState(initialCheckIn || today());
   const [checkOut, setCheckOut] = useState(initialCheckOut || tomorrow());
@@ -179,23 +182,44 @@ function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialC
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
 
-  const assignedRoom = rooms[0];
+  const customer = auth?.user?.role === "customer" ? auth.user : null;
   const validDates = checkIn && checkOut && new Date(checkOut) > new Date(checkIn);
   const nights = validDates ? diffDays(checkIn, checkOut) : 0;
   const total = type.nightly_rate * nights;
   const set = (k, v) => setForm({ ...form, [k]: v });
+
+  const submitReservation = async (guestId) => {
+    // Room is auto-assigned server-side based on the chosen dates
+    const reservation = await api("/reservations", { method: "POST", body: { guest_id: guestId, type_id: type.type_id, check_in_date: checkIn, check_out_date: checkOut, total_amount: total } });
+    setConfirmation(reservation);
+    setStep(3);
+    if (onSuccess) onSuccess();
+  };
+
+  const handleContinue = async () => {
+    if (!validDates) return;
+    if (customer?.guest_id) {
+      // Logged-in guests skip the details form — we already know who they are
+      setSubmitting(true);
+      try {
+        await submitReservation(customer.guest_id);
+      } catch (e) {
+        alert(e.message);
+      }
+      setSubmitting(false);
+    } else {
+      setStep(2);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!form.firstName || !form.lastName || !form.email) return alert("Please fill in your name and email");
     setSubmitting(true);
     try {
       const guest = await api("/guests", { method: "POST", body: { first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone || null, street: form.street || null, city: form.city || null, province: null, country: null } });
-      const reservation = await api("/reservations", { method: "POST", body: { guest_id: guest.guest_id, room_id: assignedRoom.room_id, check_in_date: checkIn, check_out_date: checkOut, total_amount: total } });
-      setConfirmation({ ...reservation, guest });
-      setStep(3);
-      if (onSuccess) onSuccess();
+      await submitReservation(guest.guest_id);
     } catch (e) {
-      alert("Booking failed. Please try again.");
+      alert(e.message);
     }
     setSubmitting(false);
   };
@@ -262,9 +286,14 @@ function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialC
                 </div>
               )}
             </div>
-            <button onClick={() => setStep(2)} disabled={!validDates} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull, opacity: validDates ? 1 : 0.4, cursor: validDates ? "pointer" : "not-allowed" }}>
-              Continue
+            <button onClick={handleContinue} disabled={!validDates || submitting} style={{ ...S.btn, ...S.btnPrimary, ...S.btnFull, opacity: validDates && !submitting ? 1 : 0.4, cursor: validDates ? "pointer" : "not-allowed" }}>
+              {submitting ? "Confirming…" : customer ? "Confirm Booking" : "Continue"}
             </button>
+            {customer && (
+              <p style={{ fontSize: 11, fontFamily: "'DM Sans', sans-serif", color: "#a09882", textAlign: "center", marginTop: 12 }}>
+                Booking as <strong>{customer.username}</strong> — your room will be assigned automatically.
+              </p>
+            )}
           </>
         )}
 
@@ -315,12 +344,12 @@ function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialC
         {step === 3 && confirmation && (
           <div style={{ textAlign: "center" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#e6f5eb", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
-            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>Thank you, {form.firstName}!</div>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>Thank you, {form.firstName || customer?.username}!</div>
             <div style={{ fontSize: 14, fontFamily: "'DM Sans', sans-serif", color: "#8a7e6e", marginBottom: 20 }}>
               Your reservation <strong>#{confirmation.reservation_id}</strong> has been confirmed.
             </div>
             <div style={{ background: "#f0ece4", borderRadius: 10, padding: 20, textAlign: "left", fontFamily: "'DM Sans', sans-serif", fontSize: 13, lineHeight: 2 }}>
-              <div><strong>Room:</strong> {type.type_name} · Room {assignedRoom.room_number}</div>
+              <div><strong>Room:</strong> {type.type_name} · Room {confirmation.room_number}</div>
               <div><strong>Check-in:</strong> {checkIn}</div>
               <div><strong>Check-out:</strong> {checkOut}</div>
               <div><strong>Total:</strong> {fmt(total)}</div>
@@ -334,10 +363,45 @@ function BookingModal({ type, rooms, checkIn: initialCheckIn, checkOut: initialC
   );
 }
 
+function MyBookingsModal({ onClose }) {
+  const [bookings, setBookings] = useState(null);
+
+  useEffect(() => {
+    api("/my-reservations").then(setBookings).catch(() => setBookings([]));
+  }, []);
+
+  const statusColors = { confirmed: "#4a8c5c", checked_in: "#3a6ea5", checked_out: "#8a7e6e", cancelled: "#c44" };
+
+  return (
+    <div style={S.modal} onClick={onClose}>
+      <div style={S.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 26, fontWeight: 600, color: "#2c2820" }}>My Bookings</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 24, color: "#8a7e6e", cursor: "pointer" }}>✕</button>
+        </div>
+        <hr style={S.divider} />
+        {bookings === null && <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#8a7e6e", textAlign: "center", padding: 20 }}>Loading…</div>}
+        {bookings?.length === 0 && <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#8a7e6e", textAlign: "center", padding: 20 }}>You have no bookings yet.</div>}
+        {bookings?.map((b) => (
+          <div key={b.reservation_id} style={{ background: "#f0ece4", borderRadius: 10, padding: 16, marginBottom: 12, fontFamily: "'DM Sans', sans-serif" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontWeight: 700, color: "#2c2820", fontSize: 14 }}>{b.type_name} · Room {b.room_number}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: statusColors[b.status] || "#8a7e6e", textTransform: "uppercase", letterSpacing: 1 }}>{b.status.replace("_", " ")}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#8a7e6e" }}>
+              {b.check_in_date} → {b.check_out_date} · {fmt(b.total_amount || 0)} · Reservation #{b.reservation_id}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════ */
 /*  MAIN PUBLIC BOOKING PAGE                              */
 /* ═══════════════════════════════════════════════════════ */
-export default function BookingPage({ onSwitchToAdmin }) {
+export default function BookingPage({ auth, onLogout }) {
   const [roomTypes, setRoomTypes] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [checkIn, setCheckIn] = useState(today());
@@ -345,7 +409,11 @@ export default function BookingPage({ onSwitchToAdmin }) {
   const [searched, setSearched] = useState(false);
   const [booking, setBooking] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [showBookings, setShowBookings] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const customer = auth?.user?.role === "customer" ? auth.user : null;
+  const staff = auth?.user && auth.user.role !== "customer" ? auth.user : null;
 
   const loadData = async () => {
     const [rt, rm] = await Promise.all([api("/room-types"), api("/rooms")]);
@@ -356,8 +424,8 @@ export default function BookingPage({ onSwitchToAdmin }) {
 
   useEffect(() => { loadData(); }, []);
 
-  const availableRooms = (typeId) =>
-    rooms.filter((r) => r.type_id === typeId && r.status === "available");
+  // Full room count per type — bookings never reduce this number
+  const totalRooms = (typeId) => rooms.filter((r) => r.type_id === typeId).length;
 
   const handleSearch = () => setSearched(true);
 
@@ -366,10 +434,9 @@ export default function BookingPage({ onSwitchToAdmin }) {
   };
 
   const handleBook = (type) => {
-    const avail = availableRooms(type.type_id);
-    if (avail.length === 0) return;
+    if (totalRooms(type.type_id) === 0) return;
     setDetail(null);
-    setBooking({ type, rooms: avail });
+    setBooking({ type });
   };
 
   if (loading) {
@@ -390,8 +457,19 @@ export default function BookingPage({ onSwitchToAdmin }) {
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <NavLink onClick={() => document.getElementById("rooms-section")?.scrollIntoView({ behavior: "smooth" })}>Rooms</NavLink>
           <NavLink onClick={() => document.getElementById("about-section")?.scrollIntoView({ behavior: "smooth" })}>About</NavLink>
-          {onSwitchToAdmin && (
-            <button onClick={onSwitchToAdmin} style={{ ...S.btn, ...S.btnOutline, padding: "8px 18px", fontSize: 12, marginLeft: 8 }}>Admin</button>
+          {customer && (
+            <>
+              <NavLink onClick={() => setShowBookings(true)}>My Bookings</NavLink>
+              <button onClick={onLogout} style={{ ...S.btn, ...S.btnOutline, padding: "8px 18px", fontSize: 12, marginLeft: 8 }}>Logout</button>
+            </>
+          )}
+          {staff && (
+            <button onClick={() => (window.location.href = "/admin")} style={{ ...S.btn, ...S.btnOutline, padding: "8px 18px", fontSize: 12, marginLeft: 8 }}>
+              {staff.role === "admin" ? "Admin Panel" : "Front Desk"}
+            </button>
+          )}
+          {!auth && (
+            <button onClick={() => (window.location.href = "/login")} style={{ ...S.btn, ...S.btnOutline, padding: "8px 18px", fontSize: 12, marginLeft: 8 }}>Login</button>
           )}
         </div>
       </nav>
@@ -417,7 +495,7 @@ export default function BookingPage({ onSwitchToAdmin }) {
         </p>
         <div style={S.roomGrid}>
           {roomTypes.map((type, i) => (
-            <RoomCard key={type.type_id} type={type} index={i} available={availableRooms(type.type_id).length} onSelect={handleSelect} />
+            <RoomCard key={type.type_id} type={type} index={i} total={totalRooms(type.type_id)} onSelect={handleSelect} />
           ))}
         </div>
       </section>
@@ -455,8 +533,7 @@ export default function BookingPage({ onSwitchToAdmin }) {
         <RoomDetailModal
           type={detail.type}
           index={detail.index}
-          available={availableRooms(detail.type.type_id).length}
-          availableRooms={availableRooms(detail.type.type_id)}
+          total={totalRooms(detail.type.type_id)}
           checkIn={checkIn}
           checkOut={checkOut}
           onBook={handleBook}
@@ -468,13 +545,16 @@ export default function BookingPage({ onSwitchToAdmin }) {
       {booking && (
         <BookingModal
           type={booking.type}
-          rooms={booking.rooms}
+          auth={auth}
           checkIn={checkIn}
           checkOut={checkOut}
           onClose={() => { setBooking(null); loadData(); }}
           onSuccess={() => loadData()}
         />
       )}
+
+      {/* My Bookings Modal */}
+      {showBookings && <MyBookingsModal onClose={() => setShowBookings(false)} />}
     </div>
   );
 }

@@ -112,6 +112,26 @@ CREATE TABLE payments (
 );
 
 
+-- ────────────────────────────────────────────────────────────
+-- TABLE 6: users
+-- Login accounts: admin / employee / customer roles
+-- Customers are linked to their guest record via guest_id
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE users (
+    user_id       INT           AUTO_INCREMENT PRIMARY KEY,
+    username      VARCHAR(50)   NOT NULL UNIQUE,
+    email         VARCHAR(100)  UNIQUE,
+    password_hash VARCHAR(100)  NOT NULL,
+    role          ENUM('admin', 'employee', 'customer')
+                                NOT NULL DEFAULT 'customer',
+    guest_id      INT,
+    created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (guest_id) REFERENCES guests(guest_id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+
 -- ============================================================
 -- SEED DATA
 -- ============================================================
