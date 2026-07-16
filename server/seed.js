@@ -56,7 +56,7 @@ async function seed() {
       ('317', 3, 3, 'available'),
       ('318', 4, 3, 'available'),
       ('319', 4, 3, 'available'),
-      ('420', 4, 4, 'available'),
+      ('420', 4, 4, 'occupied'),
       ('421', 4, 4, 'available'),
       ('422', 4, 4, 'available'),
       ('King',  5, 4, 'occupied'),
@@ -82,7 +82,9 @@ async function seed() {
       (2, 10, '2026-05-14', '2026-05-17', 'checked_in',   4500),
       (3, 15, '2026-05-20', '2026-05-23', 'confirmed',    7500),
       (4,  1, '2026-05-10', '2026-05-12', 'checked_out',  1400),
-      (5, 18, '2026-05-22', '2026-05-24', 'confirmed',    8000)
+      (5, 18, '2026-05-22', '2026-05-24', 'confirmed',    8000),
+      (6, 16, '2026-07-20', '2026-07-23', 'confirmed',    7500),
+      (7, 20, '2026-07-16', '2026-07-19', 'checked_in',  12000)
     `);
 
     // ── Payments ──
@@ -93,7 +95,9 @@ async function seed() {
       (2, 1500,  'deposit', 'card',          '2026-05-14'),
       (3, 2500,  'deposit', 'bank_transfer', '2026-05-18'),
       (4, 1400,  'full',    'cash',          '2026-05-12'),
-      (5, 4000,  'deposit', 'gcash',         '2026-05-20')
+      (5, 4000,  'deposit', 'gcash',         '2026-05-20'),
+      (6, 3000,  'deposit', 'gcash',         '2026-07-14'),
+      (7, 12000, 'full',    'card',          '2026-07-16')
     `);
 
     await client.query("COMMIT");
