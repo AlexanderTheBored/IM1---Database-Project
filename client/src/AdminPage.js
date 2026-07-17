@@ -142,6 +142,11 @@ export default function AdminPage({ user, onLogout }) {
   const openEditRoom = (r) => setModal({ type: "edit-room", room: r, form: { room_number: r.room_number, type_id: r.type_id, floor: r.floor, status: r.status } });
   const openEditRoomType = (t) => setModal({ type: "edit-room-type", roomType: t, form: { type_name: t.type_name, description: t.description || "", nightly_rate: t.nightly_rate, max_occupancy: t.max_occupancy || 1 } });
   const openDeleteConfirm = (message, endpoint) => setModal({ type: "delete-confirm", message, endpoint });
+  const openGuestHistory = async (g) => {
+    const history = await api(`/guests/${g.guest_id}/history`);
+    if (history.error) return alert(history.error);
+    setModal({ type: "guest-history", ...history });
+  };
   const openResDetail = (res) => {
     const nights = diffDays(res.check_in_date, res.check_out_date || today());
     const total = res.total_amount || (res.nightly_rate || 0) * nights;
@@ -251,7 +256,8 @@ export default function AdminPage({ user, onLogout }) {
               <Btn small variant="ghost" onClick={() => openEditGuest(g)}>Edit</Btn>
               <Btn small variant="danger" onClick={() => openDeleteConfirm(`Delete ${g.first_name} ${g.last_name}? Fails if they have reservations.`, `/guests/${g.guest_id}`)}>✕</Btn>
             </div>) },
-          ]} data={guests.filter((g) => { if (!search) return true; const s = search.toLowerCase(); return `${g.first_name} ${g.last_name}`.toLowerCase().includes(s) || (g.email||"").toLowerCase().includes(s); })} /></Card>
+          ]} data={guests.filter((g) => { if (!search) return true; const s = search.toLowerCase(); return `${g.first_name} ${g.last_name}`.toLowerCase().includes(s) || (g.email||"").toLowerCase().includes(s); })} onRowClick={openGuestHistory} /></Card>
+          <p style={{ fontSize: 11, color: "#5a5040", marginTop: 10 }}>Click a guest to view their booking history and spending.</p>
         </>)}
 
         {tab === "reservations" && (<>
@@ -507,6 +513,69 @@ export default function AdminPage({ user, onLogout }) {
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
             <Btn variant="secondary" onClick={() => setModal(null)}>Cancel</Btn>
             <Btn onClick={async () => { if (!modal.form.name || !modal.form.rate) return alert("Name and rate required"); await api("/room-types", { method: "POST", body: { type_name: modal.form.name, description: modal.form.description, nightly_rate: Number(modal.form.rate) } }); await reload(); setModal(null); }}>Add Type</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {modal?.type === "guest-history" && (
+        <Modal title={`${modal.guest.first_name} ${modal.guest.last_name} — Guest History`} onClose={() => setModal(null)} wide>
+          {/* Contact info */}
+          <div style={{ fontSize: 12, color: "#8a8070", marginBottom: 16, lineHeight: 1.8 }}>
+            {modal.guest.email && <span>✉ {modal.guest.email}&nbsp;&nbsp;&nbsp;</span>}
+            {modal.guest.phone && <span>☏ {modal.guest.phone}&nbsp;&nbsp;&nbsp;</span>}
+            {[modal.guest.street, modal.guest.city, modal.guest.province, modal.guest.country].filter(Boolean).length > 0 && (
+              <span>⌂ {[modal.guest.street, modal.guest.city, modal.guest.province, modal.guest.country].filter(Boolean).join(", ")}</span>
+            )}
+          </div>
+
+          {/* Summary stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div style={{ background: "#141210", borderRadius: 8, padding: "14px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: "#8a8070", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Bookings</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#c9a84c" }}>{modal.reservations.length}</div>
+            </div>
+            <div style={{ background: "#141210", borderRadius: 8, padding: "14px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: "#8a8070", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Total Billed</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#e8dcc8" }}>{fmt(modal.totalBilled)}</div>
+            </div>
+            <div style={{ background: "#141210", borderRadius: 8, padding: "14px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: "#8a8070", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Total Spent</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#4ade80" }}>{fmt(modal.totalSpent)}</div>
+            </div>
+          </div>
+
+          {/* Booking history */}
+          <div style={{ fontSize: 11, color: "#8a8070", textTransform: "uppercase", fontWeight: 600, letterSpacing: 0.8, marginBottom: 8 }}>Booking History</div>
+          {modal.reservations.length === 0 && <div style={{ fontSize: 13, color: "#5a5040", padding: "10px 0" }}>No reservations yet.</div>}
+          {modal.reservations.map((r) => (
+            <div key={r.reservation_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #2d2a24" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#e8dcc8" }}>Room {r.room_number} — {r.type_name} <span style={{ color: "#8a8070", fontWeight: 400 }}>· #{r.reservation_id}</span></div>
+                <div style={{ fontSize: 11, color: "#8a8070", marginTop: 2 }}>{r.check_in_date} → {r.check_out_date} · {diffDays(r.check_in_date, r.check_out_date)} night{diffDays(r.check_in_date, r.check_out_date) > 1 ? "s" : ""}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>{fmt(r.total_amount || 0)}</span>
+                <Badge status={r.status} />
+              </div>
+            </div>
+          ))}
+
+          {/* Payment history */}
+          {modal.payments.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div style={{ fontSize: 11, color: "#8a8070", textTransform: "uppercase", fontWeight: 600, letterSpacing: 0.8, marginBottom: 8 }}>Spending Records</div>
+              {modal.payments.map((p) => (
+                <div key={p.payment_id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1e1b17", fontSize: 12 }}>
+                  <span style={{ color: "#8a8070" }}>{p.payment_date} · Reservation #{p.reservation_id} · <span style={{ textTransform: "capitalize" }}>{p.payment_type}</span> · <span style={{ textTransform: "capitalize" }}>{(p.payment_method || "").replace("_", " ")}</span></span>
+                  <span style={{ fontWeight: 700, color: "#4ade80" }}>{fmt(p.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+            <Btn variant="secondary" onClick={() => { const g = modal.guest; setModal(null); openEditGuest(g); }}>Edit Guest</Btn>
+            <Btn onClick={() => setModal(null)}>Close</Btn>
           </div>
         </Modal>
       )}

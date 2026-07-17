@@ -263,6 +263,40 @@ app.get("/api/guests/:id", staffOnly, async (req, res) => {
   res.json(rows[0]);
 });
 
+// Full history for one guest: profile + reservations + payments + total spend
+app.get("/api/guests/:id/history", staffOnly, async (req, res) => {
+  const guest = await pool.query("SELECT * FROM guests WHERE guest_id = $1", [req.params.id]);
+  if (!guest.rows.length) return res.status(404).json({ error: "Guest not found" });
+  const [reservations, payments] = await Promise.all([
+    pool.query(`
+      SELECT res.*, r.room_number, r.floor, rt.type_name, rt.nightly_rate
+      FROM reservations res
+      JOIN rooms r ON res.room_id = r.room_id
+      JOIN room_types rt ON r.type_id = rt.type_id
+      WHERE res.guest_id = $1
+      ORDER BY res.check_in_date DESC, res.reservation_id DESC
+    `, [req.params.id]),
+    pool.query(`
+      SELECT p.*, res.room_id
+      FROM payments p
+      JOIN reservations res ON p.reservation_id = res.reservation_id
+      WHERE res.guest_id = $1
+      ORDER BY p.payment_date DESC, p.payment_id DESC
+    `, [req.params.id]),
+  ]);
+  const totalSpent = payments.rows.reduce((sum, p) => sum + p.amount, 0);
+  const totalBilled = reservations.rows
+    .filter((r) => r.status !== "cancelled")
+    .reduce((sum, r) => sum + (r.total_amount || 0), 0);
+  res.json({
+    guest: guest.rows[0],
+    reservations: reservations.rows,
+    payments: payments.rows,
+    totalSpent,
+    totalBilled,
+  });
+});
+
 app.post("/api/guests", async (req, res) => {
   const { first_name, last_name, email, phone, street, city, province, country } = req.body;
   if (!first_name || !last_name) return res.status(400).json({ error: "first_name and last_name are required" });
