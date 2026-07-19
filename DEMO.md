@@ -1,9 +1,9 @@
 # AIKE — Feature Demo Script
 
-> **Before the demo:** reseed the database that morning (`node server/seed.js` with the
-> Railway `DATABASE_PUBLIC_URL`, or ask Claude to run it). Seed dates are relative to
-> the day you seed, so the dashboard and availability counters will look "live" —
-> Bubbles checked in today, Maria checking out tomorrow, Aike arriving in 4 days.
+> **Before the demo:** reseed the database that morning — run `node server/seed.js`
+> with `DATABASE_URL` set to the Railway public connection string. Seed dates are
+> relative to the day you seed, so the dashboard and availability counters will look
+> "live" — Bubbles checked in today, Maria checking out tomorrow, Aike arriving in 4 days.
 >
 > **Logins:** `admin` / `admin123` · `employee` / `employee123` · customer: register live
 
